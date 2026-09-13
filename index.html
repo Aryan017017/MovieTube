@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f0f0f" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="MovieTube" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>MovieTube</title>
+<link rel="preconnect" href="https://image.tmdb.org" />
+<link rel="preconnect" href="https://api.themoviedb.org" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="styles.css?v=1" />
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<!-- Boot / session-check splash -->
+<div id="boot-screen" class="login-screen">
+  <div class="login-inner">
+    <h1 class="logo login-logo">MOVIETUBE</h1>
+    <div class="boot-spinner"></div>
+  </div>
+</div>
+
+<!-- Login / Sign up -->
+<div id="login-screen" class="login-screen hidden">
+  <div class="login-inner">
+    <h1 class="logo login-logo">MOVIETUBE</h1>
+    <div class="login-card">
+      <h2 id="login-title">Sign In</h2>
+      <div id="login-error" class="login-error hidden"></div>
+      <form id="login-form">
+        <input id="login-email" type="email" placeholder="Email" autocomplete="email" required />
+        <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" required minlength="6" />
+        <button type="submit" id="login-submit" class="btn login-submit">Sign In</button>
+      </form>
+      <p class="login-switch">
+        <span id="login-switch-text">New to MovieTube?</span>
+        <a href="#" id="login-switch-link">Sign up now</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" class="hidden">
+
+<header id="navbar">
+  <div class="nav-left">
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">☰</button>
+    <a href="#" class="logo" data-nav="home"><span class="logo-mark">▶</span>MovieTube</a>
+  </div>
+  <div class="nav-center">
+    <div class="search-box-wrap">
+      <div class="search-box" id="search-box">
+        <input id="search" type="search" placeholder="Search titles, people, genres" autocomplete="off" />
+        <button type="button" class="search-icon" id="search-icon" aria-label="Search">⌕</button>
+      </div>
+      <div id="search-suggest" class="search-suggest hidden"></div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="profile-pill" id="profile-pill" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+      <div class="profile-avatar-mini" id="profile-avatar-mini"></div>
+      <div class="profile-menu" id="profile-menu">
+        <div class="profile-menu-email" id="profile-menu-email"></div>
+        <a href="#/history" data-nav="history">Viewing activity</a>
+        <a href="#" id="clear-data">Clear watch data</a>
+        <a href="#" id="logout-btn">Log out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<aside id="sidebar">
+  <nav id="navbar-nav">
+    <a href="#" data-nav="home" class="active"><span class="side-icon">⌂</span><span class="side-label">Home</span></a>
+    <a href="#" data-nav="mylist"><span class="side-icon">☰</span><span class="side-label">My List</span></a>
+    <div class="side-divider"></div>
+    <div class="side-heading">Browse</div>
+    <a href="#" data-nav="movies"><span class="side-icon">▭</span><span class="side-label">Movies</span></a>
+    <a href="#" data-nav="tv"><span class="side-icon">▤</span><span class="side-label">TV Shows</span></a>
+    <a href="#" data-nav="new"><span class="side-icon">✦</span><span class="side-label">New &amp; Popular</span></a>
+    <div class="side-divider"></div>
+    <a href="#/history" data-nav="history"><span class="side-icon">↺</span><span class="side-label">History</span></a>
+    <a href="#/stats" data-nav="stats"><span class="side-icon">◔</span><span class="side-label">Your Stats</span></a>
+  </nav>
+</aside>
+
+<main id="content">
+  <section id="hero" class="hero">
+    <div class="hero-bg" id="hero-bg"></div>
+    <div class="hero-trailer" id="hero-trailer"></div>
+    <div class="hero-fade-bottom"></div>
+    <div class="hero-fade-left"></div>
+    <div class="hero-content" id="hero-content"></div>
+    <div class="hero-controls">
+      <button class="mute-btn" id="mute-btn" aria-label="Mute">✕</button>
+      <div class="age-badge" id="hero-age"></div>
+    </div>
+  </section>
+  <div id="rows"></div>
+</main>
+
+<footer id="footer">
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <a href="#/privacy">Privacy</a>
+      <a href="#/achievements">Achievements</a>
+      <a href="#/stats">Your Stats</a>
+      
+    </div>
+    <div class="footer-copy">MovieTube · A personal project, not a commercial service · Movie and show data from TMDB</div>
+  </div>
+</footer>
+
+</div>
+
+<!-- Modal -->
+<div id="toast" class="toast hidden"></div>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-body">
+    <button class="modal-close" aria-label="Close">×</button>
+
+    <div class="modal-hero">
+      <div id="modal-bg" class="modal-bg"></div>
+      <div id="modal-trailer" class="modal-trailer"></div>
+      <div class="modal-hero-fade"></div>
+      <div class="modal-hero-content">
+        <h2 id="modal-title"></h2>
+        <div class="modal-hero-buttons">
+          <button id="hero-play-btn" class="btn">▶ Play</button>
+          <button id="add-list" class="icon-btn" title="My List" aria-label="Add to My List">+</button>
+          <button id="modal-mute-btn" class="icon-btn mute-circle" aria-label="Mute">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="player-wrap" id="player-wrap"></div>
+
+    <div class="modal-info">
+      <div class="modal-info-grid">
+        <div class="modal-info-main">
+          <div class="modal-meta">
+            <span id="modal-match" class="match"></span>
+            <span id="modal-year"></span>
+            <span id="modal-age" class="age-mini"></span>
+            <span id="modal-runtime"></span>
+            <span id="modal-quality" class="quality">HD</span>
+          </div>
+          <p id="modal-overview"></p>
+        </div>
+        <div class="modal-info-side">
+          <div class="info-line"><span class="label">Cast:</span> <span id="modal-cast"></span></div>
+          <div class="info-line"><span class="label">Genres:</span> <span id="modal-genres"></span></div>
+        </div>
+      </div>
+
+      <div id="cast-section" class="cast-section hidden">
+        <h3>Cast</h3>
+        <div id="cast-row" class="cast-row"></div>
+      </div>
+
+      <div id="episode-section" class="episode-section hidden">
+        <div class="section-header">
+          <h3>Episodes</h3>
+          <select id="season-select" class="season-pill"></select>
+        </div>
+        <div id="episode-list" class="episode-list"></div>
+      </div>
+
+      <div id="similar-section" class="similar-section hidden">
+        <h3>More Like This</h3>
+        <div id="similar-grid" class="similar-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- YouTube channel-row video lightbox -->
+<div id="yt-lightbox" class="yt-lightbox hidden">
+  <button class="yt-lightbox-close" aria-label="Close">×</button>
+  <div class="yt-lightbox-inner">
+    <div id="yt-lightbox-player"></div>
+    <div class="yt-lightbox-meta">
+      <h2 id="yt-lightbox-title"></h2>
+      <div id="yt-lightbox-channel" class="yt-lightbox-channel"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Firebase config — safe to be public; access is enforced by Firestore security rules.
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDXQGbr_dAUE-PVC_gN4Y94iMi3BfBvoWU",
+    authDomain: "moviebox-224b8.firebaseapp.com",
+    projectId: "moviebox-224b8",
+    storageBucket: "moviebox-224b8.firebasestorage.app",
+    messagingSenderId: "93182489172",
+    appId: "1:93182489172:web:c614f5c616eda922dab3c1",
+  };
+</script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

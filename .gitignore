@@ -1,0 +1,3 @@
+.claude/
+*.docx
+worker/.wrangler/

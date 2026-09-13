@@ -1,0 +1,15 @@
+{
+  "name": "MovieTube",
+  "short_name": "MovieTube",
+  "description": "Watch movies and TV shows",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1815",
+  "theme_color": "#1a1815",
+  "categories": ["entertainment", "video"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
