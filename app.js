@@ -1258,71 +1258,95 @@ const heroObserver = new IntersectionObserver((entries) => {
 }, { threshold: 0.2 });
 heroObserver.observe($("#hero"));
 
-// ---------- Pages ----------
+// ---------- Home feed (YouTube-style: filter chips over one flat grid) ----------
+let homeCategories = [];
+let homeActiveChip = "all";
+function addHomeCategory(key, label, items, cwFlag) {
+  if (!items || !items.length) return;
+  if (cwFlag) items.forEach(it => { it.__cw = true; });
+  homeCategories.push({ key, label, items });
+  renderHomeFeed();
+}
+function renderHomeFeed() {
+  const rows = $("#rows");
+  if (!$("#home-grid")) {
+    rows.innerHTML = `<div class="home-chips" id="home-chips"></div><div class="home-grid" id="home-grid"></div>`;
+  }
+  const chipsEl = $("#home-chips");
+  chipsEl.innerHTML = `<button class="chip ${homeActiveChip === "all" ? "active" : ""}" data-chip="all">All</button>` +
+    homeCategories.map(c => `<button class="chip ${homeActiveChip === c.key ? "active" : ""}" data-chip="${c.key}">${escapeHTML(c.label)}</button>`).join("");
+  chipsEl.querySelectorAll(".chip").forEach(btn => {
+    btn.addEventListener("click", () => { homeActiveChip = btn.dataset.chip; renderHomeFeed(); });
+  });
+  let items;
+  if (homeActiveChip === "all") {
+    const seen = new Set();
+    items = [];
+    homeCategories.forEach(c => c.items.forEach(it => {
+      const k = (it.type || "youtube") + ":" + it.id;
+      if (seen.has(k)) return;
+      seen.add(k);
+      items.push(it);
+    }));
+  } else {
+    items = homeCategories.find(c => c.key === homeActiveChip)?.items || [];
+  }
+  const grid = $("#home-grid");
+  grid.innerHTML = "";
+  if (!items.length) { grid.innerHTML = `<div class="empty">Nothing here yet.</div>`; return; }
+  items.forEach(it => {
+    grid.appendChild(it.type === "youtube" ? makeYouTubeCard(it) : makeCard(it, { showProgress: it.__cw }));
+  });
+}
 async function showHome() {
   setActive("home");
   stopHeroTrailer();
+  homeCategories = [];
+  homeActiveChip = "all";
   const rows = $("#rows");
-  rows.innerHTML = ""; for (let i = 0; i < 4; i++) rows.appendChild(skeletonRow());
+  rows.innerHTML = `<div class="home-chips" id="home-chips"></div><div class="home-grid" id="home-grid"></div>`;
+  $("#home-grid").innerHTML = Array.from({ length: 8 }, () => `<div class="sk-card grid-sk"></div>`).join("");
   try {
     const regionParam = { region: userRegion };
-    const [trending, popMovies, popTV, topMovies, trendingDay, trendingRegion] = await Promise.all([
+    const [trending, popMovies, popTV, topMovies, trendingDay] = await Promise.all([
       tmdb("/trending/all/week"),
       tmdb("/movie/popular", regionParam),
       tmdb("/tv/popular"),
       tmdb("/movie/top_rated"),
       tmdb("/trending/all/day"),
-      tmdb("/movie/popular", regionParam).catch(() => null),
     ]);
     const trendingItems = trending.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r));
     const heroPick = trendingItems.find(t => t.backdrop && t.overview) || trendingItems[0];
     renderHero(heroPick);
 
-    rows.innerHTML = "";
+    addHomeCategory("continue", "Continue Watching", getContinueWatching(), true);
+    addHomeCategory("mylist", "My List", myList);
+    addHomeCategory("trending", "Trending Now", trendingItems);
+    addHomeCategory("top10", `Top 10 in ${userRegion}`, trendingDay.results.slice(0, 10).map(r => normalizeTMDB(r)));
+    addHomeCategory("popmovies", "Popular Movies", popMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+    addHomeCategory("poptv", "Popular TV Shows", popTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv")));
+    addHomeCategory("acclaimed", "Critically Acclaimed", topMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
 
-    const continueItems = getContinueWatching();
-    if (continueItems.length) rows.appendChild(renderRow("Continue Watching", continueItems, { showProgress: true }));
-    if (myList.length) rows.appendChild(renderRow("My List", myList));
-
-    // Recommended for You: one blended, scored row from all your seeds
-    getRecommendedForYou().then(items => {
-      if (items.length) rows.appendChild(renderRow("Recommended for You", items));
-    }).catch(() => {});
+    // Recommended for You: one blended, scored set from all your seeds
+    getRecommendedForYou().then(items => addHomeCategory("recommended", "Recommended for You", items)).catch(() => {});
 
     // Then the named "Because you watched X" breakdowns per seed
     getNamedRecommendations().then(namedRows => {
-      namedRows.forEach(({ label, items, subtitle }) => {
-        if (!items.length) return;
-        const r = renderRow(label, items, { subtitle });
-        rows.appendChild(r);
-      });
+      namedRows.forEach(({ label, items }, i) => addHomeCategory(`rec_${i}`, label, items));
     }).catch(() => {});
 
-    rows.appendChild(renderRow("Trending Now", trendingItems));
-    rows.appendChild(renderRow(
-      `Top 10 in ${userRegion} Today`,
-      trendingDay.results.slice(0, 10).map(r => normalizeTMDB(r)),
-      { top10: true, top10Badge: `in ${userRegion}` }
-    ));
-    rows.appendChild(renderRow("Popular Movies", popMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
-    rows.appendChild(renderRow("Popular TV Shows", popTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv"))));
-    rows.appendChild(renderRow("Critically Acclaimed Movies", topMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
-
-    // YouTube channel rows (fire-and-forget, same pattern as the recommendation rows above)
+    // YouTube channel content (fire-and-forget, same pattern as the recommendation rows above)
     if (YOUTUBE_API_KEY) {
       Promise.all(YOUTUBE_CHANNELS.map(cfg => fetchYouTubeChannelRow(cfg).catch(() => ({ label: cfg.label, items: [] }))))
         .then(results => {
-          results.forEach(({ label, items }) => {
-            if (items.length) rows.appendChild(renderRow(label, items));
-          });
-          rows.appendChild(renderYouTubeChannelTiles(YOUTUBE_CHANNELS.map((cfg, i) => ({ cfg, items: results[i].items }))));
+          results.forEach(({ label, items }, i) => addHomeCategory(`yt_${YOUTUBE_CHANNELS[i].key}`, label, items));
         }).catch(() => {});
     }
 
-    // Genre rows (lazy after main content)
+    // Genre categories (lazy after main content)
     for (const g of GENRES_MOVIE.slice(0, 5)) {
       const data = await tmdb("/discover/movie", { with_genres: g.id, sort_by: "popularity.desc" });
-      rows.appendChild(renderRow(g.name, data.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
+      addHomeCategory(`genre_${g.id}`, g.name, data.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
     }
   } catch (e) {
     rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`;
@@ -2866,7 +2890,7 @@ function sparkleAt(el) {
 }
 
 function renderRatingButtons(item) {
-  const buttonsRow = $(".modal-hero-buttons");
+  const buttonsRow = $(".modal-channel-row");
   if (!buttonsRow) return;
   // Remove any existing rating UI
   buttonsRow.querySelectorAll(".rating-btn").forEach(n => n.remove());
@@ -2945,20 +2969,15 @@ async function openModal(item, opts = {}) {
   $("#player-wrap").innerHTML = ""; $("#player-wrap").classList.remove("active");
   $(".modal-body").classList.remove("playing");
   $("#modal-title").textContent = item.title;
-  $("#modal-title").classList.remove("has-logo"); $("#modal-title").style.backgroundImage = "";
-  fetchTitleLogo(item).then(logo => {
-    if (logo && currentItem === item) {
-      $("#modal-title").classList.add("has-logo");
-      $("#modal-title").style.backgroundImage = `url("${logo}")`;
-    }
-  });
+  const avatarBg = item.poster || item.backdrop || "";
+  $("#modal-channel-avatar").style.backgroundImage = avatarBg ? `url("${avatarBg}")` : "";
   $("#modal-match").textContent = `${pseudoMatch(item)}% Match`;
   $("#modal-year").textContent = item.year || "";
   $("#modal-age").textContent = pseudoAge(item);
   $("#modal-runtime").textContent = "";
   $("#modal-overview").textContent = item.overview || "";
-  $("#modal-cast").textContent = "Loading…";
-  $("#modal-genres").textContent = (item.genres || []).join(", ");
+  $("#modal-cast").textContent = (item.genres || []).join(", ");
+  $("#modal-genres").textContent = "MovieTube";
   $("#episode-section").classList.add("hidden");
   $("#similar-section").classList.add("hidden");
   $("#cast-section").classList.add("hidden"); $("#cast-row").innerHTML = "";
@@ -2989,30 +3008,30 @@ async function openModal(item, opts = {}) {
       if (details.runtime) $("#modal-runtime").textContent = `${details.runtime} min`;
       else if (details.episode_run_time?.[0]) $("#modal-runtime").textContent = `${details.episode_run_time[0]} min`;
       else if (details.number_of_seasons) $("#modal-runtime").textContent = `${details.number_of_seasons} Season${details.number_of_seasons > 1 ? "s" : ""}`;
-      $("#modal-cast").textContent = credits.cast.slice(0, 4).map(c => c.name).join(", ") || "—";
-      $("#modal-genres").textContent = (details.genres || []).map(g => g.name).join(", ");
+      const genreNames = (details.genres || []).map(g => g.name);
+      const castNames = credits.cast.slice(0, 4).map(c => c.name);
+      $("#modal-cast").textContent = [genreNames.join(", "), castNames.join(", ")].filter(Boolean).join(" · ") || "—";
+      const studio = (details.production_companies || [])[0]?.name;
+      $("#modal-genres").textContent = studio || genreNames.slice(0, 2).join(", ") || "MovieTube";
 
-      // Crew: director, writers, studio
-      const sideEl = $(".modal-info-side");
-      // Remove any prior dynamic lines
-      sideEl.querySelectorAll(".info-line.dynamic").forEach(n => n.remove());
+      // Crew: director, writers — shown as a line under the description
+      const infoMain = $(".modal-info-main");
+      infoMain.querySelectorAll(".info-line.dynamic").forEach(n => n.remove());
       const crew = credits.crew || [];
       const directors = item.type === "movie"
         ? crew.filter(c => c.job === "Director").map(c => c.name)
         : (details.created_by || []).map(c => c.name);
       const writers = [...new Set(crew.filter(c => c.department === "Writing" || c.job === "Writer" || c.job === "Screenplay").map(c => c.name))];
-      const studio = (details.production_companies || [])[0]?.name;
       const directorLabel = item.type === "movie" ? "Director" : "Creator";
       const addLine = (label, val) => {
         if (!val) return;
         const d = document.createElement("div");
         d.className = "info-line dynamic";
         d.innerHTML = `<span class="label">${label}:</span> <span>${escapeHTML(val)}</span>`;
-        sideEl.appendChild(d);
+        infoMain.appendChild(d);
       };
       if (directors.length) addLine(directors.length > 1 ? directorLabel + "s" : directorLabel, directors.slice(0, 2).join(", "));
       if (writers.length) addLine(writers.length > 1 ? "Writers" : "Writer", writers.slice(0, 3).join(", "));
-      if (studio) addLine("Studio", studio);
 
       // Cast row with images
       const castRow = $("#cast-row");
@@ -3122,18 +3141,16 @@ function makeSimilarCard(item) {
   div.className = "similar-card";
   const bg = item.backdropMd || item.backdrop || item.poster;
   div.innerHTML = `
-    <div class="sim-img">
-      <div class="sim-title-overlay">${escapeHTML(item.title || "")}</div>
-    </div>
+    <div class="sim-img"></div>
     <div class="sim-body">
+      <div class="sim-title">${escapeHTML(item.title || "")}</div>
       <div class="sim-meta">
-        <span class="match">${pseudoMatch(item)}% Match</span>
-        ${item.rating ? `<span class="rating-star">★ ${item.rating}</span>` : ""}
+        <span class="match">${pseudoMatch(item)}% match</span>
+        <span class="dot">•</span>
         <span>${item.year || ""}</span>
-        <button type="button" class="sim-add" aria-label="Add ${escapeHTML(item.title || "")} to My List">+</button>
       </div>
-      <div class="sim-overview">${escapeHTML(item.overview || "")}</div>
-    </div>`;
+    </div>
+    <button type="button" class="sim-add" aria-label="Add ${escapeHTML(item.title || "")} to My List">+</button>`;
   if (bg) {
     const imgEl = div.querySelector(".sim-img");
     imgEl.dataset.bg = bg;

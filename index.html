@@ -134,56 +134,57 @@
   <div class="modal-body">
     <button class="modal-close" aria-label="Close">×</button>
 
-    <div class="modal-hero">
-      <div id="modal-bg" class="modal-bg"></div>
-      <div id="modal-trailer" class="modal-trailer"></div>
-      <div class="modal-hero-fade"></div>
-      <div class="modal-hero-content">
+    <div class="modal-columns">
+      <div class="modal-main">
+        <div class="modal-hero">
+          <div id="modal-bg" class="modal-bg"></div>
+          <div id="modal-trailer" class="modal-trailer"></div>
+        </div>
+        <div class="player-wrap" id="player-wrap"></div>
+
         <h2 id="modal-title"></h2>
-        <div class="modal-hero-buttons">
+        <div class="modal-meta">
+          <span id="modal-match" class="match"></span>
+          <span id="modal-year"></span>
+          <span id="modal-age" class="age-mini"></span>
+          <span id="modal-runtime"></span>
+          <span id="modal-quality" class="quality">HD</span>
+        </div>
+
+        <div class="modal-channel-row">
+          <div id="modal-channel-avatar" class="modal-channel-avatar"></div>
+          <div class="modal-channel-info">
+            <div id="modal-genres" class="modal-channel-name"></div>
+            <div id="modal-cast" class="modal-channel-sub"></div>
+          </div>
           <button id="hero-play-btn" class="btn">▶ Play</button>
           <button id="add-list" class="icon-btn" title="My List" aria-label="Add to My List">+</button>
           <button id="modal-mute-btn" class="icon-btn mute-circle" aria-label="Mute">✕</button>
         </div>
-      </div>
-    </div>
 
-    <div class="player-wrap" id="player-wrap"></div>
-
-    <div class="modal-info">
-      <div class="modal-info-grid">
         <div class="modal-info-main">
-          <div class="modal-meta">
-            <span id="modal-match" class="match"></span>
-            <span id="modal-year"></span>
-            <span id="modal-age" class="age-mini"></span>
-            <span id="modal-runtime"></span>
-            <span id="modal-quality" class="quality">HD</span>
-          </div>
           <p id="modal-overview"></p>
         </div>
-        <div class="modal-info-side">
-          <div class="info-line"><span class="label">Cast:</span> <span id="modal-cast"></span></div>
-          <div class="info-line"><span class="label">Genres:</span> <span id="modal-genres"></span></div>
+
+        <div id="cast-section" class="cast-section hidden">
+          <h3>Cast</h3>
+          <div id="cast-row" class="cast-row"></div>
+        </div>
+
+        <div id="episode-section" class="episode-section hidden">
+          <div class="section-header">
+            <h3>Episodes</h3>
+            <select id="season-select" class="season-pill"></select>
+          </div>
+          <div id="episode-list" class="episode-list"></div>
         </div>
       </div>
 
-      <div id="cast-section" class="cast-section hidden">
-        <h3>Cast</h3>
-        <div id="cast-row" class="cast-row"></div>
-      </div>
-
-      <div id="episode-section" class="episode-section hidden">
-        <div class="section-header">
-          <h3>Episodes</h3>
-          <select id="season-select" class="season-pill"></select>
+      <div class="modal-side">
+        <div id="similar-section" class="similar-section hidden">
+          <h3>Related</h3>
+          <div id="similar-grid" class="similar-grid"></div>
         </div>
-        <div id="episode-list" class="episode-list"></div>
-      </div>
-
-      <div id="similar-section" class="similar-section hidden">
-        <h3>More Like This</h3>
-        <div id="similar-grid" class="similar-grid"></div>
       </div>
     </div>
   </div>
