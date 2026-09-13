@@ -1258,54 +1258,59 @@ const heroObserver = new IntersectionObserver((entries) => {
 }, { threshold: 0.2 });
 heroObserver.observe($("#hero"));
 
-// ---------- Home feed (YouTube-style: filter chips over one flat grid) ----------
-let homeCategories = [];
-let homeActiveChip = "all";
-function addHomeCategory(key, label, items, cwFlag) {
-  if (!items || !items.length) return;
-  if (cwFlag) items.forEach(it => { it.__cw = true; });
-  homeCategories.push({ key, label, items });
-  renderHomeFeed();
-}
-function renderHomeFeed() {
-  const rows = $("#rows");
-  if (!$("#home-grid")) {
-    rows.innerHTML = `<div class="home-chips" id="home-chips"></div><div class="home-grid" id="home-grid"></div>`;
+// ---------- Chip feed (YouTube-style: filter chips over one flat grid) ----------
+// Reused by the Home, Movies/TV, and New & Popular pages so each one gets
+// the same "sticky chips + wrapping video grid" structure instead of
+// Netflix-style horizontal shelves.
+function makeChipFeed(rowsEl) {
+  let categories = [];
+  let activeChip = "all";
+  function render() {
+    if (!rowsEl.querySelector(".home-grid")) {
+      rowsEl.innerHTML = `<div class="home-chips"></div><div class="home-grid"></div>`;
+    }
+    const chipsEl = rowsEl.querySelector(".home-chips");
+    chipsEl.innerHTML = `<button class="chip ${activeChip === "all" ? "active" : ""}" data-chip="all">All</button>` +
+      categories.map(c => `<button class="chip ${activeChip === c.key ? "active" : ""}" data-chip="${c.key}">${escapeHTML(c.label)}</button>`).join("");
+    chipsEl.querySelectorAll(".chip").forEach(btn => {
+      btn.addEventListener("click", () => { activeChip = btn.dataset.chip; render(); });
+    });
+    let items;
+    if (activeChip === "all") {
+      const seen = new Set();
+      items = [];
+      categories.forEach(c => c.items.forEach(it => {
+        const k = (it.type || "youtube") + ":" + it.id;
+        if (seen.has(k)) return;
+        seen.add(k);
+        items.push(it);
+      }));
+    } else {
+      items = categories.find(c => c.key === activeChip)?.items || [];
+    }
+    const grid = rowsEl.querySelector(".home-grid");
+    grid.innerHTML = "";
+    if (!items.length) { grid.innerHTML = `<div class="empty">Nothing here yet.</div>`; return; }
+    items.forEach(it => {
+      grid.appendChild(it.type === "youtube" ? makeYouTubeCard(it) : makeCard(it, { showProgress: it.__cw }));
+    });
   }
-  const chipsEl = $("#home-chips");
-  chipsEl.innerHTML = `<button class="chip ${homeActiveChip === "all" ? "active" : ""}" data-chip="all">All</button>` +
-    homeCategories.map(c => `<button class="chip ${homeActiveChip === c.key ? "active" : ""}" data-chip="${c.key}">${escapeHTML(c.label)}</button>`).join("");
-  chipsEl.querySelectorAll(".chip").forEach(btn => {
-    btn.addEventListener("click", () => { homeActiveChip = btn.dataset.chip; renderHomeFeed(); });
-  });
-  let items;
-  if (homeActiveChip === "all") {
-    const seen = new Set();
-    items = [];
-    homeCategories.forEach(c => c.items.forEach(it => {
-      const k = (it.type || "youtube") + ":" + it.id;
-      if (seen.has(k)) return;
-      seen.add(k);
-      items.push(it);
-    }));
-  } else {
-    items = homeCategories.find(c => c.key === homeActiveChip)?.items || [];
-  }
-  const grid = $("#home-grid");
-  grid.innerHTML = "";
-  if (!items.length) { grid.innerHTML = `<div class="empty">Nothing here yet.</div>`; return; }
-  items.forEach(it => {
-    grid.appendChild(it.type === "youtube" ? makeYouTubeCard(it) : makeCard(it, { showProgress: it.__cw }));
-  });
+  return {
+    add(key, label, items, cwFlag) {
+      if (!items || !items.length) return;
+      if (cwFlag) items.forEach(it => { it.__cw = true; });
+      categories.push({ key, label, items });
+      render();
+    },
+  };
 }
 async function showHome() {
   setActive("home");
   stopHeroTrailer();
-  homeCategories = [];
-  homeActiveChip = "all";
   const rows = $("#rows");
-  rows.innerHTML = `<div class="home-chips" id="home-chips"></div><div class="home-grid" id="home-grid"></div>`;
-  $("#home-grid").innerHTML = Array.from({ length: 8 }, () => `<div class="sk-card grid-sk"></div>`).join("");
+  rows.innerHTML = `<div class="home-chips"></div><div class="home-grid"></div>`;
+  rows.querySelector(".home-grid").innerHTML = Array.from({ length: 8 }, () => `<div class="grid-sk"></div>`).join("");
+  const feed = makeChipFeed(rows);
   try {
     const regionParam = { region: userRegion };
     const [trending, popMovies, popTV, topMovies, trendingDay] = await Promise.all([
@@ -1319,34 +1324,34 @@ async function showHome() {
     const heroPick = trendingItems.find(t => t.backdrop && t.overview) || trendingItems[0];
     renderHero(heroPick);
 
-    addHomeCategory("continue", "Continue Watching", getContinueWatching(), true);
-    addHomeCategory("mylist", "My List", myList);
-    addHomeCategory("trending", "Trending Now", trendingItems);
-    addHomeCategory("top10", `Top 10 in ${userRegion}`, trendingDay.results.slice(0, 10).map(r => normalizeTMDB(r)));
-    addHomeCategory("popmovies", "Popular Movies", popMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
-    addHomeCategory("poptv", "Popular TV Shows", popTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv")));
-    addHomeCategory("acclaimed", "Critically Acclaimed", topMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+    feed.add("continue", "Continue Watching", getContinueWatching(), true);
+    feed.add("mylist", "My List", myList);
+    feed.add("trending", "Trending Now", trendingItems);
+    feed.add("top10", `Top 10 in ${userRegion}`, trendingDay.results.slice(0, 10).map(r => normalizeTMDB(r)));
+    feed.add("popmovies", "Popular Movies", popMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+    feed.add("poptv", "Popular TV Shows", popTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv")));
+    feed.add("acclaimed", "Critically Acclaimed", topMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
 
     // Recommended for You: one blended, scored set from all your seeds
-    getRecommendedForYou().then(items => addHomeCategory("recommended", "Recommended for You", items)).catch(() => {});
+    getRecommendedForYou().then(items => feed.add("recommended", "Recommended for You", items)).catch(() => {});
 
     // Then the named "Because you watched X" breakdowns per seed
     getNamedRecommendations().then(namedRows => {
-      namedRows.forEach(({ label, items }, i) => addHomeCategory(`rec_${i}`, label, items));
+      namedRows.forEach(({ label, items }, i) => feed.add(`rec_${i}`, label, items));
     }).catch(() => {});
 
     // YouTube channel content (fire-and-forget, same pattern as the recommendation rows above)
     if (YOUTUBE_API_KEY) {
       Promise.all(YOUTUBE_CHANNELS.map(cfg => fetchYouTubeChannelRow(cfg).catch(() => ({ label: cfg.label, items: [] }))))
         .then(results => {
-          results.forEach(({ label, items }, i) => addHomeCategory(`yt_${YOUTUBE_CHANNELS[i].key}`, label, items));
+          results.forEach(({ label, items }, i) => feed.add(`yt_${YOUTUBE_CHANNELS[i].key}`, label, items));
         }).catch(() => {});
     }
 
     // Genre categories (lazy after main content)
     for (const g of GENRES_MOVIE.slice(0, 5)) {
       const data = await tmdb("/discover/movie", { with_genres: g.id, sort_by: "popularity.desc" });
-      addHomeCategory(`genre_${g.id}`, g.name, data.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+      feed.add(`genre_${g.id}`, g.name, data.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
     }
   } catch (e) {
     rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`;
@@ -1402,17 +1407,8 @@ async function showCategory(type, genreId = null) {
       rows.innerHTML = "";
       rows.appendChild(renderGenreChips(type, genreId));
       const grid = document.createElement("div");
-      grid.className = "search-grid";
-      items.forEach(it => {
-        const cell = document.createElement("div"); cell.className = "search-cell";
-        cell.appendChild(makeCard(it));
-        const meta = document.createElement("div"); meta.className = "search-meta";
-        meta.innerHTML = `<span class="type-pill">${type === "tv" ? "Series" : "Movie"}</span><span>${it.year || ""}</span>`;
-        const title = document.createElement("div"); title.className = "search-title";
-        title.textContent = it.title;
-        cell.appendChild(title); cell.appendChild(meta);
-        grid.appendChild(cell);
-      });
+      grid.className = "home-grid";
+      items.forEach(it => grid.appendChild(makeCard(it)));
       rows.appendChild(grid);
       return;
     }
@@ -1426,18 +1422,14 @@ async function showCategory(type, genreId = null) {
     renderHero(trendItems.find(i => i.backdrop) || trendItems[0]);
     rows.innerHTML = "";
     rows.appendChild(renderGenreChips(type, null));
-    rows.appendChild(renderRow("Trending This Week", trendItems));
-    rows.appendChild(renderRow("Top 10 in " + (type === "tv" ? "TV" : "Movies"), trendItems.slice(0, 10), { top10: true }));
-    rows.appendChild(renderRow(type === "movie" ? "Now Playing" : "Currently Airing", nowOrAir.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type))));
-    rows.appendChild(renderRow("Popular", popular.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type))));
-    rows.appendChild(renderRow("Top Rated", topRated.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type))));
-
-    if (type === "movie") {
-      for (const g of GENRES_MOVIE) {
-        const data = await tmdb("/discover/movie", { with_genres: g.id, sort_by: "popularity.desc" });
-        rows.appendChild(renderRow(g.name, data.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
-      }
-    }
+    const feedWrap = document.createElement("div");
+    rows.appendChild(feedWrap);
+    const feed = makeChipFeed(feedWrap);
+    feed.add("trending", "Trending This Week", trendItems);
+    feed.add("top10", "Top 10 in " + (type === "tv" ? "TV" : "Movies"), trendItems.slice(0, 10));
+    feed.add("nowplaying", type === "movie" ? "Now Playing" : "Currently Airing", nowOrAir.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type)));
+    feed.add("popular", "Popular", popular.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type)));
+    feed.add("toprated", "Top Rated", topRated.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type)));
   } catch (e) {
     rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`;
   }
@@ -1457,12 +1449,13 @@ async function showNewPopular() {
     ]);
     const trendItems = trending.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r));
     renderHero(trendItems.find(i => i.backdrop) || trendItems[0]);
-    rows.innerHTML = "";
-    rows.appendChild(renderRow("Trending Today", trendItems));
-    rows.appendChild(renderRow("Top 10 Today", trendItems.slice(0, 10), { top10: true }));
-    rows.appendChild(renderRow("Coming Soon (Movies)", upMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
-    rows.appendChild(renderRow("Airing Today (TV)", upTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv"))));
-    rows.appendChild(renderRow("Newly Released", latestMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
+    rows.innerHTML = `<div class="home-chips"></div><div class="home-grid"></div>`;
+    const feed = makeChipFeed(rows);
+    feed.add("trending", "Trending Today", trendItems);
+    feed.add("top10", "Top 10 Today", trendItems.slice(0, 10));
+    feed.add("comingsoon", "Coming Soon (Movies)", upMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+    feed.add("airing", "Airing Today (TV)", upTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv")));
+    feed.add("newlyreleased", "Newly Released", latestMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
   } catch (e) { rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`; }
 }
 
@@ -2807,7 +2800,7 @@ function renderGenreChips(type, activeId) {
 }
 
 function setActive(nav) {
-  $$("#navbar nav a").forEach(a => a.classList.toggle("active", a.dataset.nav === nav));
+  $$("#navbar-nav a").forEach(a => a.classList.toggle("active", a.dataset.nav === nav));
 }
 
 // ---------- Modal ----------
@@ -3789,17 +3782,17 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") setMobileNavOpen(false); });
 
-$$("#navbar [data-nav]").forEach(a => {
+$$("#navbar-nav [data-nav]").forEach(a => {
   a.addEventListener("click", e => {
-    e.preventDefault();
     setMobileNavOpen(false);
     const nav = a.dataset.nav;
-    if (nav === "home") navTo("#/");
-    else if (nav === "movies") navTo("#/movies");
-    else if (nav === "tv") navTo("#/tv");
-    else if (nav === "new") navTo("#/new");
-    else if (nav === "mylist") navTo("#/list");
-    else if (nav === "history") { setProfileMenuOpen(false); navTo("#/history"); }
+    if (nav === "home") { e.preventDefault(); navTo("#/"); }
+    else if (nav === "movies") { e.preventDefault(); navTo("#/movies"); }
+    else if (nav === "tv") { e.preventDefault(); navTo("#/tv"); }
+    else if (nav === "new") { e.preventDefault(); navTo("#/new"); }
+    else if (nav === "mylist") { e.preventDefault(); navTo("#/list"); }
+    else if (nav === "history") { e.preventDefault(); setProfileMenuOpen(false); navTo("#/history"); }
+    // Everything else (stats, yt-*) has a real href — let the natural hash navigation happen.
   });
 });
 
