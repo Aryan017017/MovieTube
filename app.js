@@ -24,7 +24,7 @@ const YOUTUBE_CHANNELS = [
 const PLAYER_COLOR = "D9A441";
 // Optional: deploy the Cloudflare Worker in /worker and put its URL here to
 // route the player through a popup-shielding proxy. Leave "" to disable.
-const PROXY_PLAYER_BASE = "";
+const PROXY_PLAYER_BASE = "https://moviebox-player-proxy.aryan017017.workers.dev";
 
 // ---- Player provider ----
 // All free embed providers monetize via popup ads. Try a few and pick the
