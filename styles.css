@@ -837,19 +837,7 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 .chip:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: #fff; }
 .chip.active { background: #fff; color: #000; border-color: #fff; }
 
-/* ================ Home feed (chips + flat grid) ================ */
-.home-chips {
-  display: flex; gap: 12px; padding: 12px 24px; margin: 0;
-  overflow-x: auto; scrollbar-width: none;
-  position: sticky; top: calc(56px + env(safe-area-inset-top, 0px)); z-index: 10;
-  background: var(--bg);
-}
-.home-chips::-webkit-scrollbar { display: none; }
-.home-chips .chip {
-  background: var(--bg-3); border: 0; color: var(--text);
-}
-.home-chips .chip:hover { background: var(--bg-4); }
-.home-chips .chip.active { background: var(--text); color: var(--bg); }
+/* ================ Flat grid (search, tag, genre pages) ================ */
 .home-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 24px 16px; padding: 8px 24px 24px;
@@ -1240,8 +1228,6 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   .episode-info .ep-overview { font-size: 12px; -webkit-line-clamp: 2; }
   .similar-grid { grid-template-columns: 1fr; gap: 8px; }
   .similar-card .sim-body { padding: 8px 10px 10px; }
-  .similar-card .sim-title-overlay { font-size: 14px; padding: 8px 10px; }
-  .similar-card .sim-overview { font-size: 12px; -webkit-line-clamp: 3; }
 
   /* Search */
   .search-grid { grid-template-columns: repeat(2, 1fr); gap: 16px 8px; padding: 0 4%; }

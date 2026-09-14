@@ -1258,52 +1258,6 @@ function stopHeroTrailer() {
   heroItem = null;
 }
 
-// ---------- Chip feed (YouTube-style: filter chips over one flat grid) ----------
-// Reused by the Home, Movies/TV, and New & Popular pages so each one gets
-// the same "sticky chips + wrapping video grid" structure instead of
-// Netflix-style horizontal shelves.
-function makeChipFeed(rowsEl) {
-  let categories = [];
-  let activeChip = "all";
-  function render() {
-    if (!rowsEl.querySelector(".home-grid")) {
-      rowsEl.innerHTML = `<div class="home-chips"></div><div class="home-grid"></div>`;
-    }
-    const chipsEl = rowsEl.querySelector(".home-chips");
-    chipsEl.innerHTML = `<button class="chip ${activeChip === "all" ? "active" : ""}" data-chip="all">All</button>` +
-      categories.map(c => `<button class="chip ${activeChip === c.key ? "active" : ""}" data-chip="${c.key}">${escapeHTML(c.label)}</button>`).join("");
-    chipsEl.querySelectorAll(".chip").forEach(btn => {
-      btn.addEventListener("click", () => { activeChip = btn.dataset.chip; render(); });
-    });
-    let items;
-    if (activeChip === "all") {
-      const seen = new Set();
-      items = [];
-      categories.forEach(c => c.items.forEach(it => {
-        const k = (it.type || "youtube") + ":" + it.id;
-        if (seen.has(k)) return;
-        seen.add(k);
-        items.push(it);
-      }));
-    } else {
-      items = categories.find(c => c.key === activeChip)?.items || [];
-    }
-    const grid = rowsEl.querySelector(".home-grid");
-    grid.innerHTML = "";
-    if (!items.length) { grid.innerHTML = `<div class="empty">Nothing here yet.</div>`; return; }
-    items.forEach(it => {
-      grid.appendChild(it.type === "youtube" ? makeYouTubeCard(it) : makeCard(it, { showProgress: it.__cw }));
-    });
-  }
-  return {
-    add(key, label, items, cwFlag) {
-      if (!items || !items.length) return;
-      if (cwFlag) items.forEach(it => { it.__cw = true; });
-      categories.push({ key, label, items });
-      render();
-    },
-  };
-}
 async function showHome() {
   setActive("home");
   stopHeroTrailer();
