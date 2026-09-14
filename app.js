@@ -2985,6 +2985,10 @@ async function loadEpisodes(tvId, seasonNum) {
   list.innerHTML = `<div class="empty" style="padding:24px 0">Loading episodes…</div>`;
   try {
     const sd = await tmdb(`/tv/${tvId}/season/${seasonNum}`);
+    // Bail if the season picker or the whole title was switched again while
+    // this was in flight — an older season's episodes shouldn't land after
+    // a newer selection.
+    if (currentSeason !== seasonNum || currentItem?.id !== tvId) return;
     currentSeasonEpisodes = sd.episodes || [];
     list.innerHTML = "";
     const last = progressMap[progressKey(currentItem)];
