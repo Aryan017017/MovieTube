@@ -831,6 +831,12 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   background: linear-gradient(90deg, var(--bg-2), var(--bg-3), var(--bg-2));
   background-size: 200% 100%; animation: shimmer 1.8s infinite linear;
 }
+.person-photo-sk { aspect-ratio: auto; width: 220px; height: 320px; }
+.person-sk-bar {
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--bg-2), var(--bg-3), var(--bg-2));
+  background-size: 200% 100%; animation: shimmer 1.8s infinite linear;
+}
 
 /* Continue Watching extras */
 .cw-meta {
@@ -984,8 +990,9 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 }
 @media (max-width: 900px) {
   .person-header { grid-template-columns: 1fr; gap: 18px; }
-  .person-photo { width: 160px; height: 240px; margin: 0 auto; }
+  .person-photo, .person-photo-sk { width: 160px; height: 240px; margin: 0 auto; }
   .person-info { text-align: center; }
+  .person-info .person-sk-bar { margin-left: auto; margin-right: auto; }
   .person-info h1 { font-size: 28px; }
   .person-meta { justify-content: center; gap: 10px; font-size: 13px; }
   .person-meta span:not(:last-child)::after { margin-left: 10px; }

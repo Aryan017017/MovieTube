@@ -1353,7 +1353,16 @@ async function showPerson(personId) {
   stopHeroTrailer();
   const token = ++showPersonToken;
   const rows = $("#rows");
-  rows.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+  rows.innerHTML = `
+    <div class="person-header">
+      <div class="person-photo-sk grid-sk"></div>
+      <div class="person-info">
+        <div class="person-sk-bar" style="width:80px;height:12px;"></div>
+        <div class="person-sk-bar" style="width:280px;height:36px;margin-top:12px;"></div>
+        <div class="person-sk-bar" style="width:200px;height:14px;margin-top:16px;"></div>
+      </div>
+    </div>
+    <div class="home-grid">${Array.from({ length: 8 }, () => `<div class="grid-sk"></div>`).join("")}</div>`;
   try {
     const [person, credits] = await Promise.all([
       tmdb(`/person/${personId}`),
