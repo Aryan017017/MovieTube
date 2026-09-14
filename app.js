@@ -460,6 +460,22 @@ function migrateEpisodeProgress() {
 
 // ---------- TMDB ----------
 const tmdbCache = new Map();
+// A laptop waking from sleep can leave a fetch's underlying TCP connection
+// silently dead — the OS hasn't noticed yet, so the browser never resolves
+// *or* rejects it, and it just hangs forever. Every page-level Promise.all
+// awaiting one of these would then hang too, freezing the UI on a stale
+// skeleton with no error ever reaching the existing try/catch. Aborting
+// after a timeout guarantees a rejection, so that catch actually fires.
+async function fetchWithTimeout(url, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function tmdb(path, params = {}) {
   const key = path + JSON.stringify(params);
   if (tmdbCache.has(key)) return tmdbCache.get(key);
@@ -468,7 +484,7 @@ async function tmdb(path, params = {}) {
   url.searchParams.set("language", "en-US");
   url.searchParams.set("include_image_language", "en,null");
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const r = await fetch(url);
+  const r = await fetchWithTimeout(url);
   if (!r.ok) throw new Error(`TMDB ${r.status}`);
   const json = await r.json();
   tmdbCache.set(key, json);
@@ -481,7 +497,7 @@ async function youtubeFetch(path, params = {}) {
   const url = new URL(`${YOUTUBE_API}/${path}`);
   url.searchParams.set("key", YOUTUBE_API_KEY);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const r = await fetch(url);
+  const r = await fetchWithTimeout(url);
   if (!r.ok) throw new Error(`YouTube API ${r.status}`);
   return r.json();
 }
@@ -1217,7 +1233,7 @@ async function fetchFanartLogo(item) {
       if (!tvdbId) return null;
       url = `https://webservice.fanart.tv/v3/tv/${tvdbId}?api_key=${FANART_API_KEY}`;
     }
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     if (!res.ok) return null;
     const data = await res.json();
     return pickBestLogo(data.hdmovielogo) || pickBestLogo(data.movielogo) ||
@@ -1230,7 +1246,7 @@ async function fetchTmdbLogo(item) {
     const url = new URL(TMDB + path);
     url.searchParams.set("api_key", TMDB_API_KEY);
     url.searchParams.set("include_image_language", "en,null");
-    const r = await fetch(url);
+    const r = await fetchWithTimeout(url);
     if (!r.ok) return null;
     const data = await r.json();
     const logos = (data.logos || []).filter(l => l.iso_639_1 === "en" || l.iso_639_1 === null);
