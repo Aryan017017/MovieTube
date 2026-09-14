@@ -34,12 +34,15 @@ const PROXY_PLAYER_BASE = "";
 //   "vidsrc"   – different URL scheme, fewer params
 //   "embedsu"  – minimal, bare embed
 const PLAYER_PROVIDER = "videasy";
-// If the default provider never signals a single timeupdate within this
+// If the current provider never signals a single timeupdate within this
 // long (some devices/networks get stuck on the provider's own loading
-// screen — e.g. a caption fetch that silently hangs), automatically swap
-// to this fallback provider once and retry, rather than leaving the user
-// stuck on an infinite spinner.
-const PLAYER_FALLBACK_PROVIDER = "vidlink";
+// screen — e.g. a caption fetch that silently hangs), automatically swap to
+// the next provider in the chain and retry, rather than leaving the user
+// stuck on an infinite spinner. Every provider except the last gets a
+// watchdog; if all of them time out, the last one is left running as-is
+// (nothing further to fall back to).
+const PLAYER_PROVIDER_CHAIN = [PLAYER_PROVIDER, "vidlink", "vidsrc", "embedsu"]
+  .filter((p, i, arr) => arr.indexOf(p) === i); // de-dup in case PLAYER_PROVIDER is already one of these
 const PLAYER_WATCHDOG_MS = 14000;
 // =========================================================================
 
@@ -677,10 +680,9 @@ const logoObserver = new IntersectionObserver((entries) => {
       img.src = url;
       img.alt = "";
       el.appendChild(img);
-      // Hide the plain-text title below the thumbnail once real logo art is
-      // showing on it — otherwise the title reads twice, which is the exact
-      // "looks cluttered" issue the plain caption overlay had before.
-      el.closest(".card")?.classList.add("has-logo");
+      // Real logo art replaces the plain-text fallback title, rather than
+      // showing both at once.
+      el.classList.add("has-logo");
     }).catch(() => {});
   });
 }, { rootMargin: "200px 100px" });
@@ -767,26 +769,12 @@ function makeCard(item, opts = {}) {
     ${progressRing}
     ${cwMeta}
     ${progressBar}
+    <div class="thumb-title-fallback">${escapeHTML(item.title || "")}</div>
     <div class="thumb-actions">
       <button type="button" class="play-mini" aria-label="Play ${escapeHTML(item.title || "")}">▶</button>
       <button type="button" class="add-mini" aria-label="Add ${escapeHTML(item.title || "")} to My List">+</button>
     </div>`;
-  const avatarBg = item.poster || item.backdropMd || item.backdrop || "";
-  card.innerHTML = `
-    <div class="card-info">
-      <div class="card-avatar" style="${avatarBg ? `background-image:url('${avatarBg}')` : ""}"></div>
-      <div class="card-text">
-        <div class="title">${escapeHTML(item.title || "")}</div>
-        <div class="row2">
-          <span class="match">${pseudoMatch(item)}% match</span>
-          <span class="dot">•</span>
-          <span class="age-mini">${pseudoAge(item)}</span>
-          <span class="dot">•</span>
-          <span>${item.year || ""}</span>
-        </div>
-      </div>
-    </div>`;
-  card.prepend(thumb);
+  card.appendChild(thumb);
   makeFocusableActivatable(card, item.title || "Untitled", () => openModal(item));
   if (dismissBtn) {
     card.querySelector(".cw-dismiss").addEventListener("click", (e) => {
@@ -3258,24 +3246,33 @@ function computeNextEpisode(item, ctx) {
 
 let playerAttemptToken = 0;
 let playerWatchdogTimer = null;
-function launchPlayerAttempt(item, ctx, seek, provider, token, armWatchdog) {
-  const url = buildPlayerURL(item, ctx, seek, provider);
+// Walks PLAYER_PROVIDER_CHAIN (videasy → vidlink → vidsrc → embedsu) rather
+// than a single named fallback: if a provider never signals a timeupdate
+// within the watchdog window, automatically try the next one. The
+// postMessage listener only recognizes videasy's message shape (gated by
+// PLAYER_ORIGIN), so only the very first attempt gets a *confirmed* liveness
+// check; later hops watchdog on a plain timeout instead — not perfectly
+// accurate, but stuck-forever-on-a-dead-embed is worse than an occasional
+// unnecessary extra hop.
+function launchPlayerAttempt(item, ctx, seek, chainIndex, token) {
+  const provider = PLAYER_PROVIDER_CHAIN[chainIndex] || PLAYER_PROVIDER_CHAIN[0];
+  // The very first attempt leaves providerOverride null so buildPlayerURL's
+  // own PROXY_PLAYER_BASE preference still applies; later hops always name
+  // their provider explicitly, which (by design, see buildPlayerURL) bypasses
+  // the proxy and goes straight to that provider's own embed.
+  const url = buildPlayerURL(item, ctx, seek, chainIndex === 0 ? null : provider);
   $("#player-wrap").classList.add("active");
   $("#player-wrap").innerHTML = `<iframe src="${url}"
     allow="encrypted-media; autoplay; fullscreen; picture-in-picture"
     allowfullscreen referrerpolicy="origin"></iframe>
     <button class="player-fs-btn" id="player-fs-btn" title="Fullscreen" aria-label="Fullscreen">⛶</button>`;
   clearTimeout(playerWatchdogTimer);
-  // Only the initial attempt (on the default provider) gets watchdogged —
-  // once we've already fallen back once, the postMessage listener can't
-  // verify a different provider's liveness anyway (it only understands
-  // videasy's message shape, gated by origin), so there's nothing more to
-  // watch for.
-  if (armWatchdog && provider !== PLAYER_FALLBACK_PROVIDER) {
+  const nextIndex = chainIndex + 1;
+  if (nextIndex < PLAYER_PROVIDER_CHAIN.length) {
     playerWatchdogTimer = setTimeout(() => {
       if (token !== playerAttemptToken) return; // superseded — user closed or replayed
       showToast("Having trouble loading — trying another server…");
-      launchPlayerAttempt(item, ctx, seek, PLAYER_FALLBACK_PROVIDER, token, false);
+      launchPlayerAttempt(item, ctx, seek, nextIndex, token);
     }, PLAYER_WATCHDOG_MS);
   }
 }
@@ -3307,7 +3304,7 @@ function startPlayer(item, ctx = {}, seekOffsetSec = null) {
   $("#modal-trailer").innerHTML = "";
   $(".modal-body").classList.add("playing");
   playerAttemptToken++;
-  launchPlayerAttempt(item, ctx, seekOffsetSec, PROXY_PLAYER_BASE ? "videasy" : PLAYER_PROVIDER, playerAttemptToken, true);
+  launchPlayerAttempt(item, ctx, seekOffsetSec, 0, playerAttemptToken);
   $("#modal").scrollTop = 0;
 
   playingItem = item;
