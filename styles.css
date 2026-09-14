@@ -1202,7 +1202,12 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   }
   .modal-columns { grid-template-columns: 1fr; padding: 0 16px 32px; }
   #modal-title { font-size: 17px; }
-  .modal-channel-row { flex-wrap: wrap; row-gap: 8px; }
+  /* Avatar+name always take the full first line on their own (flex-basis
+     100%), so Play + the rating icons wrap together onto their own full-
+     width second line instead of everything fighting for space and
+     leaving a lone icon stranded on a third line. */
+  .modal-channel-row { flex-wrap: wrap; row-gap: 10px; }
+  .modal-channel-info { flex-basis: 100%; }
   .modal-channel-row .btn { padding: 8px 18px; font-size: 14px; }
   .modal-channel-row .icon-btn { width: 40px; height: 40px; font-size: 18px; }
   .modal-meta { font-size: 13px; gap: 8px; }
