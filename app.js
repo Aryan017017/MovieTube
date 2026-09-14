@@ -1656,7 +1656,7 @@ function renderBudgetGauge() {
 
 // ============== LIBRARY (smart status tabs) ==============
 function showLibrary(tab) {
-  setActive(null);
+  setActive(tab === "watching" ? "watching" : null);
   document.body.classList.add("no-hero");
   stopHeroTrailer();
   const rows = $("#rows");
