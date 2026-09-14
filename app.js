@@ -89,6 +89,7 @@ const GENRES_MOVIE = [
 
 // ---------- Storage ----------
 const STORAGE = {
+  sidebarCollapsed: "movietube:sidebarCollapsed",
   progress: "movietube:progress",
   list: "movietube:mylist",
   onboarded: "movietube:onboarded",
@@ -731,6 +732,7 @@ function makeCard(item, opts = {}) {
     ${progressRing}
     ${cwMeta}
     ${progressBar}
+    <div class="thumb-title-overlay">${escapeHTML(item.title || "")}</div>
     <div class="thumb-actions">
       <button type="button" class="play-mini" aria-label="Play ${escapeHTML(item.title || "")}">▶</button>
       <button type="button" class="add-mini" aria-label="Add ${escapeHTML(item.title || "")} to My List">+</button>
@@ -3770,17 +3772,30 @@ window.addEventListener("hashchange", route);
 window.addEventListener("popstate", route);
 
 // ---------- Nav ----------
+// One class drives two different behaviors depending on viewport: on
+// desktop it collapses the sidebar to icons-only; on narrow screens the
+// sidebar starts off-canvas and this toggles it open as an overlay.
+const MOBILE_NAV_BREAKPOINT = 900;
 function setMobileNavOpen(open) {
-  $("#navbar-nav").classList.toggle("open", open);
+  $("#app").classList.toggle("sidebar-toggled", open);
   $("#nav-hamburger").setAttribute("aria-expanded", open ? "true" : "false");
+  if (window.innerWidth > MOBILE_NAV_BREAKPOINT) {
+    localStorage.setItem(STORAGE.sidebarCollapsed, open ? "1" : "0");
+  }
+}
+if (window.innerWidth > MOBILE_NAV_BREAKPOINT && localStorage.getItem(STORAGE.sidebarCollapsed) === "1") {
+  $("#app").classList.add("sidebar-toggled");
 }
 $("#nav-hamburger").addEventListener("click", () => {
-  setMobileNavOpen(!$("#navbar-nav").classList.contains("open"));
+  setMobileNavOpen(!$("#app").classList.contains("sidebar-toggled"));
 });
 document.addEventListener("click", e => {
-  if (!e.target.closest("#navbar-nav") && !e.target.closest("#nav-hamburger")) setMobileNavOpen(false);
+  if (window.innerWidth > MOBILE_NAV_BREAKPOINT) return; // desktop collapse persists until re-toggled
+  if (!e.target.closest("#sidebar") && !e.target.closest("#nav-hamburger")) setMobileNavOpen(false);
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape") setMobileNavOpen(false); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && window.innerWidth <= MOBILE_NAV_BREAKPOINT) setMobileNavOpen(false);
+});
 
 $$("#navbar-nav [data-nav]").forEach(a => {
   a.addEventListener("click", e => {

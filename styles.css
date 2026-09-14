@@ -215,7 +215,16 @@ button { font-family: inherit; }
   width: var(--sidebar-w); background: var(--bg);
   overflow-y: auto; z-index: 45;
   padding: 12px 0;
+  transition: width 0.2s var(--ease-soft), transform 0.2s var(--ease-soft);
 }
+/* Desktop: hamburger collapses the sidebar to icons-only */
+#app.sidebar-toggled #sidebar { width: var(--sidebar-w-mini); }
+#app.sidebar-toggled #navbar { grid-template-columns: var(--sidebar-w-mini) 1fr auto; }
+#app.sidebar-toggled #content, #app.sidebar-toggled #footer { margin-left: var(--sidebar-w-mini); }
+#app.sidebar-toggled #navbar-nav .side-label,
+#app.sidebar-toggled .side-heading,
+#app.sidebar-toggled .side-divider { display: none; }
+#app.sidebar-toggled #navbar-nav a { justify-content: center; padding: 10px 0; }
 #navbar-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
 #navbar-nav a {
   display: flex; align-items: center; gap: 20px;
@@ -440,6 +449,15 @@ button { font-family: inherit; }
 }
 .card:focus { outline: none; }
 .card:focus-visible .card-thumb { outline: 3px solid #fff; outline-offset: 2px; }
+.thumb-title-overlay {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  padding: 24px 12px 10px;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.85) 70%);
+  color: #fff; font-weight: 800; font-size: 16px; line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 .thumb-actions {
   position: absolute; right: 8px; bottom: 8px; z-index: 2;
   display: flex; gap: 6px;
@@ -1155,39 +1173,32 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   .search-box.open input, .search-box:focus-within input { width: 150px; }
 }
 
-/* ================ Navbar (≤700px): hamburger menu — needs a wider
-   threshold than the rest of the phone layout since the inline nav has
-   nowhere left to shrink once search + profile controls are accounted for */
+/* ================ Sidebar (≤900px): off-canvas overlay instead of a
+   collapse-to-icons column — there's no room to permanently reserve
+   sidebar width once search + profile controls are accounted for */
+@media (max-width: 900px) {
+  #navbar { grid-template-columns: auto 1fr auto; padding: 0 14px; }
+  #sidebar {
+    width: 260px; transform: translateX(-100%);
+    box-shadow: var(--shadow-lg);
+  }
+  #app.sidebar-toggled #sidebar { width: 260px; transform: translateX(0); }
+  #app.sidebar-toggled #navbar { grid-template-columns: auto 1fr auto; }
+  #content, #footer, #app.sidebar-toggled #content, #app.sidebar-toggled #footer { margin-left: 0; }
+  #app.sidebar-toggled #navbar-nav .side-label,
+  #app.sidebar-toggled .side-heading,
+  #app.sidebar-toggled .side-divider { display: block; }
+  #app.sidebar-toggled #navbar-nav a { justify-content: flex-start; padding: 10px 12px; }
+  .search-box-wrap { max-width: none; }
+  .profile-avatar-mini { width: 28px; height: 28px; }
+}
 @media (max-width: 700px) {
   :root { --navbar-h: calc(52px + env(safe-area-inset-top, 0px)); }
-  #navbar {
-    padding: 0 14px; height: var(--navbar-h);
-    padding-top: env(safe-area-inset-top, 0px);
-    background: linear-gradient(180deg, rgba(0,0,0,0.95) 30%, transparent);
-  }
-  .nav-left { gap: 10px; }
-  .nav-hamburger { display: block; }
-  .logo { font-size: 22px; letter-spacing: 1px; }
-  .nav-left nav {
-    display: flex; flex-direction: column; gap: 2px;
-    position: fixed; top: var(--navbar-h); left: 0; right: 0; z-index: 49;
-    background: rgba(var(--hero-tint-rgb),0.98); backdrop-filter: blur(10px);
-    padding: 8px 4% 16px;
-    max-height: 0; overflow: hidden;
-    transition: max-height 0.25s var(--ease);
-  }
-  .nav-left nav.open { max-height: 60vh; overflow-y: auto; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .nav-left nav a { font-size: 15px; padding: 12px 4px; border-radius: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .nav-left nav a.active { background: transparent; color: #fff; }
-  .nav-right { gap: 10px; }
-  .search-box { padding: 6px 8px; }
-  .search-box.open, .search-box:focus-within {
-    background: rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.3);
-  }
-  .search-box .search-icon { font-size: 14px; }
-  .search-box input { font-size: 13px; }
-  .search-box.open input, .search-box:focus-within input { width: 120px; margin-left: 6px; }
-  .profile-avatar-mini { width: 28px; height: 28px; }
+  #navbar { height: var(--navbar-h); padding-top: env(safe-area-inset-top, 0px); }
+  .logo { font-size: 18px; }
+  .search-box { height: 36px; }
+  .search-box input { font-size: 14px; padding: 0 12px; }
+  .search-box .search-icon { padding: 0 14px; }
 }
 
 /* ================ Phone (≤640px) ================ */
