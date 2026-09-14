@@ -2614,14 +2614,19 @@ function showMyList() {
   }
 }
 
+let searchAllToken = 0;
 async function searchAll(query) {
   setActive(null);
   document.body.classList.add("no-hero");
   stopHeroTrailer();
+  const token = ++searchAllToken;
   const rows = $("#rows");
   rows.innerHTML = `<div class="search-header">Searching for <strong>"${escapeHTML(query)}"</strong>…</div>`;
   try {
     const data = await tmdb("/search/multi", { query });
+    // A newer search may have been submitted while this one was in flight —
+    // don't let it overwrite the page with stale results for an old query.
+    if (token !== searchAllToken) return;
     const items = data.results
       .filter(r => (r.media_type === "movie" || r.media_type === "tv") && r.backdrop_path && r.poster_path)
       .map(r => normalizeTMDB(r));
