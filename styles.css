@@ -440,13 +440,15 @@ button { font-family: inherit; }
   background: var(--bg-2); border-radius: 12px;
   background-size: cover; background-position: center;
   position: relative; overflow: hidden;
-  transition: transform 0.2s var(--ease), filter 0.4s var(--ease-soft), box-shadow 0.2s var(--ease);
+  transition: transform 0.2s var(--ease), filter 0.4s var(--ease-soft), box-shadow 0.2s var(--ease), outline-color 0.2s var(--ease);
   filter: brightness(0.85) blur(1.5px);
+  outline: 2px solid transparent; outline-offset: 0;
 }
 .card-thumb.img-loaded { filter: brightness(1) blur(0); }
 .card:hover .card-thumb, .card:focus-visible .card-thumb {
   transform: scale(1.03);
   box-shadow: var(--shadow-lg);
+  outline-color: rgba(255,255,255,0.85);
 }
 .card:focus { outline: none; }
 .card:focus-visible .card-thumb { outline: 3px solid #fff; outline-offset: 2px; }
