@@ -2877,7 +2877,7 @@ async function openModal(item, opts = {}) {
   // Trailer in modal hero
   try {
     const key = await fetchTrailerKey(item);
-    if (key) {
+    if (key && currentItem === item) {
       $("#modal-trailer").innerHTML = `<iframe src="${YT_EMBED}${key}?autoplay=1&mute=${modalMuted ? 1 : 0}&controls=0&modestbranding=1&rel=0&playsinline=1&loop=1&playlist=${key}&disablekb=1&vq=hd1080&hd=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}" allow="autoplay; encrypted-media" sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>`;
     }
   } catch {}
@@ -2891,6 +2891,9 @@ async function openModal(item, opts = {}) {
         tmdb(detailsPath + "/credits").catch(() => ({ cast: [] })),
         tmdb(detailsPath + "/similar").catch(() => ({ results: [] })),
       ]);
+      // A different title may have been opened while these were in flight —
+      // don't let this stale response overwrite the modal that's now showing.
+      if (currentItem !== item) return;
       modalDetails = details;
       if (details.runtime) $("#modal-runtime").textContent = `${details.runtime} min`;
       else if (details.episode_run_time?.[0]) $("#modal-runtime").textContent = `${details.episode_run_time[0]} min`;
