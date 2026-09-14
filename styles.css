@@ -909,6 +909,15 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 24px 16px; padding: 8px 24px 24px;
 }
+.home-grid > .card, .home-grid > .yt-card { animation: fadeIn 0.35s var(--ease) backwards; }
+.home-grid > *:nth-child(1) { animation-delay: 0.02s; }
+.home-grid > *:nth-child(2) { animation-delay: 0.04s; }
+.home-grid > *:nth-child(3) { animation-delay: 0.06s; }
+.home-grid > *:nth-child(4) { animation-delay: 0.08s; }
+.home-grid > *:nth-child(5) { animation-delay: 0.1s; }
+.home-grid > *:nth-child(6) { animation-delay: 0.12s; }
+.home-grid > *:nth-child(7) { animation-delay: 0.14s; }
+.home-grid > *:nth-child(8) { animation-delay: 0.16s; }
 .grid-sk {
   aspect-ratio: 16/9; border-radius: 12px;
   background: linear-gradient(90deg, var(--bg-2), var(--bg-3), var(--bg-2));
