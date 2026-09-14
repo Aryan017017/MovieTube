@@ -1346,10 +1346,12 @@ async function showNewPopular() {
   } catch (e) { rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`; }
 }
 
+let showPersonToken = 0;
 async function showPerson(personId) {
   setActive(null);
   document.body.classList.add("no-hero");
   stopHeroTrailer();
+  const token = ++showPersonToken;
   const rows = $("#rows");
   rows.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
   try {
@@ -1357,6 +1359,9 @@ async function showPerson(personId) {
       tmdb(`/person/${personId}`),
       tmdb(`/person/${personId}/combined_credits`),
     ]);
+    // Clicking through cast members quickly could let an earlier person's
+    // slower fetch land after a later one and overwrite their page.
+    if (token !== showPersonToken) return;
     const photo = person.profile_path ? `${IMG}/w300${person.profile_path}` : "";
     const works = (credits.cast || [])
       .filter(c =>
