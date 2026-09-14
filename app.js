@@ -3914,14 +3914,12 @@ $("#search").addEventListener("focus", () => {
   if (q) showSuggestions(q);
 });
 
-// Icon-only search that expands on click (Netflix-style), collapses back
-// when it loses focus with nothing typed in it.
+// The search box is always fully expanded (YouTube-style), so the icon is
+// a submit button: same "go to results" behavior as pressing Enter.
 $("#search-icon").addEventListener("click", () => {
-  $("#search-box").classList.add("open");
-  $("#search").focus();
-});
-$("#search").addEventListener("blur", () => {
-  if (!$("#search").value.trim()) $("#search-box").classList.remove("open");
+  const q = $("#search").value.trim();
+  if (q) { hideSuggestions(); navTo(`#/search?q=${encodeURIComponent(q)}`); }
+  else $("#search").focus();
 });
 
 // ---------- Keyboard navigation ----------
