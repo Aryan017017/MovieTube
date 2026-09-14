@@ -3722,11 +3722,17 @@ $$("#navbar-nav [data-nav]").forEach(a => {
 let searchTimer;
 let suggestItems = [];
 let suggestFocusIdx = -1;
+let suggestQueryToken = 0;
 
 async function showSuggestions(q) {
   const box = $("#search-suggest");
+  const token = ++suggestQueryToken;
   try {
     const data = await tmdb("/search/multi", { query: q });
+    // A newer query may have been issued while this one was in flight (the
+    // 220ms debounce only cancels pending timers, not requests already
+    // sent) — drop this response rather than flash stale suggestions.
+    if (token !== suggestQueryToken) return;
     suggestItems = data.results
       .filter(r => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path)
       .slice(0, 7)
