@@ -440,12 +440,13 @@ button { font-family: inherit; }
   background: var(--bg-2); border-radius: 12px;
   background-size: cover; background-position: center;
   position: relative; overflow: hidden;
-  transition: transform 0.2s var(--ease), filter 0.4s var(--ease-soft);
+  transition: transform 0.2s var(--ease), filter 0.4s var(--ease-soft), box-shadow 0.2s var(--ease);
   filter: brightness(0.85) blur(1.5px);
 }
 .card-thumb.img-loaded { filter: brightness(1) blur(0); }
-.row-scroll .card:hover .card-thumb, .row-scroll .card:focus-visible .card-thumb {
+.card:hover .card-thumb, .card:focus-visible .card-thumb {
   transform: scale(1.03);
+  box-shadow: var(--shadow-lg);
 }
 .card:focus { outline: none; }
 .card:focus-visible .card-thumb { outline: 3px solid #fff; outline-offset: 2px; }
@@ -1258,7 +1259,6 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   .skeleton-row .sk-card { flex: 0 0 30%; min-width: 130px; }
   /* No scale-up on mobile: tap brings up modal directly */
   .row-scroll .card:hover, .search-grid .card:hover { transform: none; box-shadow: none; }
-  .card:hover .card-info { opacity: 0; }
   .card-trailer { display: none; }
   .row-arrow { display: none; }
   .row:hover { z-index: 1; }
@@ -2124,7 +2124,7 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   align-self: flex-end;
 }
 .yt-card.img-loaded { filter: brightness(1) blur(0); }
-.row-scroll .yt-card:hover, .row-scroll .yt-card:focus-visible {
+.yt-card:hover, .yt-card:focus-visible {
   transform: scale(1.06); box-shadow: var(--shadow-lg); z-index: 5;
   outline-color: rgba(255,255,255,0.9);
 }
@@ -2245,7 +2245,6 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 /* ================ Touch (no hover) ================ */
 @media (hover: none) and (pointer: coarse) {
   .row-scroll .card:hover, .search-grid .card:hover { transform: none; box-shadow: none; }
-  .card:hover .card-info { opacity: 0; }
   .card-trailer { display: none; }
   .row-arrow { display: none; }
   .row:hover { z-index: 1; }
