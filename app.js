@@ -780,7 +780,7 @@ function makeCard(item, opts = {}) {
   });
   card.addEventListener("click", () => openModal(item));
   card.querySelector(".play-mini")?.addEventListener("click", (e) => { e.stopPropagation(); openTitle(item); });
-  card.querySelector(".add-mini")?.addEventListener("click", (e) => { e.stopPropagation(); toggleList(item); });
+  card.querySelector(".add-mini")?.addEventListener("click", (e) => { e.stopPropagation(); toggleList(item); sparkleAt(e.currentTarget); });
 
   let hoverTimer;
   card.addEventListener("mouseenter", () => {

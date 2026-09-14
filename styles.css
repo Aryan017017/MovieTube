@@ -565,14 +565,14 @@ button { font-family: inherit; }
 /* Skeleton */
 .skeleton-row { margin: 36px 0; padding: 0 4%; }
 .skeleton-row .sk-title {
-  width: 220px; height: 26px; background: linear-gradient(90deg, #221f1a, #322d24, #221f1a);
+  width: 220px; height: 26px; background: linear-gradient(90deg, var(--bg-2), var(--bg-3), var(--bg-2));
   background-size: 200% 100%;
   margin-bottom: 16px; border-radius: 6px; animation: shimmer 1.8s infinite linear;
 }
 .skeleton-row .sk-cards { display: flex; gap: 6px; }
 .skeleton-row .sk-card {
   flex: 0 0 12%; aspect-ratio: 2/3; min-width: 180px;
-  background: linear-gradient(90deg, #221f1a, #2c2822, #221f1a);
+  background: linear-gradient(90deg, var(--bg-2), var(--bg-3), var(--bg-2));
   background-size: 200% 100%;
   border-radius: 6px;
   animation: shimmer 1.8s infinite linear;
@@ -1833,7 +1833,7 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 .sparkle {
   position: fixed; pointer-events: none; z-index: 99999;
   width: 8px; height: 8px; border-radius: 50%;
-  background: radial-gradient(circle, #ffcc00 0%, #ff8a00 60%, transparent 100%);
+  background: radial-gradient(circle, #ffffff 0%, #ff0000 60%, transparent 100%);
   animation: sparkleFly 700ms ease-out forwards;
 }
 @keyframes sparkleFly {
