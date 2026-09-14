@@ -19,9 +19,14 @@ const SHIELD = `<script>(function(){
     try { Object.defineProperty(window, 'open', { value: noop, writable: false, configurable: false }); } catch(e){ window.open = noop; }
     // Neutralize popunder via blur/focus tricks
     window.focus = noop;
-    // Block top-frame redirects from inside the iframe
-    try { Object.defineProperty(window, 'top', { get: function(){ return window; } }); } catch(e){}
-    try { Object.defineProperty(window, 'parent', { get: function(){ return window; } }); } catch(e){}
+    // NOTE: deliberately NOT overriding window.top/window.parent here. Doing
+    // so also breaks the player's own legitimate window.parent.postMessage()
+    // calls (its playback-progress events), since those calls would then
+    // just target the iframe itself instead of reaching MovieTube's real
+    // parent-frame listener. MovieTube's own watchdog relies on receiving
+    // that postMessage to know playback actually started — without it,
+    // every proxied session looked "stuck" and got yanked to the next
+    // provider after 14s even when the video was playing fine.
     // Stop beforeunload-based redirects
     window.addEventListener('beforeunload', function(e){ e.stopImmediatePropagation(); }, true);
     // Block <a target="_blank"> auto-clicks
