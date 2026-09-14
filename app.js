@@ -2030,7 +2030,7 @@ function showPrivacy() {
 
 // ============== STATS PAGE ==============
 async function showStats() {
-  setActive("history");
+  setActive("stats");
   document.body.classList.add("no-hero");
   stopHeroTrailer();
   const rows = $("#rows");
