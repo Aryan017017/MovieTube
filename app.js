@@ -419,18 +419,6 @@ function itemKey(item) { return `${item.type}:${item.id}`; }
 function typeLabel(item) {
   return item.type === "tv" ? "Series" : item.type === "youtube" ? "Video" : "Movie";
 }
-function getTags(item) { return tagsMap[itemKey(item)] || []; }
-function setTags(item, tags) {
-  if (!tags || !tags.length) delete tagsMap[itemKey(item)];
-  else tagsMap[itemKey(item)] = tags;
-  saveTags();
-}
-function getJournal(item) { return journalMap[itemKey(item)] || ""; }
-function setJournal(item, text) {
-  if (!text) delete journalMap[itemKey(item)];
-  else journalMap[itemKey(item)] = text;
-  saveJournal();
-}
 function isHidden(item) { return !!hiddenMap[itemKey(item)]; }
 function hideItem(item) { hiddenMap[itemKey(item)] = true; saveHidden(); }
 function unhideItem(item) { delete hiddenMap[itemKey(item)]; saveHidden(); }
@@ -2850,61 +2838,6 @@ let modalSessionToken = 0;
 // navigating between titles while a modal is already open.
 let modalPreviousHash = null;
 
-function renderTagsAndJournal(item) {
-  const container = $(".modal-info-main");
-  if (!container) return;
-  container.querySelectorAll(".tags-journal-block").forEach(n => n.remove());
-  const wrap = document.createElement("div");
-  wrap.className = "tags-journal-block";
-  const tags = getTags(item);
-  const note = getJournal(item);
-  wrap.innerHTML = `
-    <div class="tj-row">
-      <div class="tj-label">Tags:</div>
-      <div class="tj-tags" id="tj-tags">${tags.map(t => `<span class="tj-tag">${escapeHTML(t)}<button class="tj-x" data-tag="${escapeHTML(t)}">×</button></span>`).join("")}</div>
-      <input type="text" class="tj-input" id="tj-add" placeholder="Add tag (e.g. favorite)" maxlength="20"/>
-    </div>
-    <div class="tj-row">
-      <div class="tj-label">Note:</div>
-      <textarea class="tj-textarea" id="tj-note" placeholder="A line about this title…" maxlength="280">${escapeHTML(note)}</textarea>
-    </div>
-    <div class="tj-row tj-actions">
-      <button class="tj-not-interested btn-secondary" id="tj-hide">${isHidden(item) ? "Restore" : "Not Interested"}</button>
-    </div>`;
-  container.appendChild(wrap);
-  // Tag add
-  const addInput = wrap.querySelector("#tj-add");
-  addInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && addInput.value.trim()) {
-      const t = addInput.value.trim();
-      const cur = getTags(item);
-      if (!cur.includes(t)) setTags(item, [...cur, t]);
-      addInput.value = "";
-      renderTagsAndJournal(item);
-      sparkleAt(addInput);
-    }
-  });
-  // Tag remove
-  wrap.querySelectorAll(".tj-x").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const t = btn.dataset.tag;
-      setTags(item, getTags(item).filter(x => x !== t));
-      renderTagsAndJournal(item);
-    });
-  });
-  // Journal save (on blur)
-  const ta = wrap.querySelector("#tj-note");
-  ta.addEventListener("blur", () => {
-    setJournal(item, ta.value.trim());
-  });
-  // Hide
-  wrap.querySelector("#tj-hide").addEventListener("click", () => {
-    if (isHidden(item)) { unhideItem(item); showToast("Restored"); }
-    else { hideItem(item); showToast("Hidden — won't appear in your home rows"); }
-    renderTagsAndJournal(item);
-  });
-}
-
 function sparkleAt(el) {
   const r = el.getBoundingClientRect();
   for (let i = 0; i < 6; i++) {
@@ -3017,7 +2950,6 @@ async function openModal(item, opts = {}) {
   updateListButton();
   renderRatingButtons(item);
   renderNewEpisodeBadge(item);
-  renderTagsAndJournal(item);
 
   // Trailer in modal hero
   try {
