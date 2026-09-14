@@ -1562,7 +1562,7 @@ function showHistory() {
   if (!entries.length) {
     rows.innerHTML += `
       <div class="empty-state">
-        <div class="empty-icon">—</div>
+        <div class="empty-icon">▶</div>
         <h2>No history yet</h2>
         <p>Anything you watch will be tracked here so you can pick up where you left off.</p>
       </div>`;
@@ -1685,7 +1685,7 @@ function showHiddenTitles() {
     <div class="page-header-actions"><a href="#/" class="page-action-btn">← Home</a></div></div>`;
   const keys = Object.keys(hiddenMap);
   if (!keys.length) {
-    rows.innerHTML += `<div class="empty-state"><div class="empty-icon">—</div><h2>Nothing hidden</h2><p>Use "Not interested" on cards to hide titles from your home rows.</p></div>`;
+    rows.innerHTML += `<div class="empty-state"><div class="empty-icon">▶</div><h2>Nothing hidden</h2><p>Use "Not interested" on cards to hide titles from your home rows.</p></div>`;
     return;
   }
   const grid = document.createElement("div");
@@ -1718,7 +1718,7 @@ async function showByTag(tag) {
     <div class="page-header-actions"><a href="#/" class="page-action-btn">← Home</a></div></div>`;
   const keys = Object.keys(tagsMap).filter(k => (tagsMap[k] || []).includes(tag));
   if (!keys.length) {
-    rows.innerHTML += `<div class="empty-state"><div class="empty-icon">—</div><h2>No titles tagged "${escapeHTML(tag)}"</h2></div>`;
+    rows.innerHTML += `<div class="empty-state"><div class="empty-icon">▶</div><h2>No titles tagged "${escapeHTML(tag)}"</h2></div>`;
     return;
   }
   const grid = document.createElement("div");
@@ -2044,7 +2044,7 @@ async function showStats() {
 
   const entries = Object.entries(progressMap).filter(([, v]) => v.title);
   if (!entries.length) {
-    rows.innerHTML += `<div class="empty-state"><div class="empty-icon">—</div><h2>No stats yet</h2><p>Watch something to see your stats.</p></div>`;
+    rows.innerHTML += `<div class="empty-state"><div class="empty-icon">▶</div><h2>No stats yet</h2><p>Watch something to see your stats.</p></div>`;
     return;
   }
 
