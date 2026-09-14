@@ -6,6 +6,12 @@ const TMDB_API_KEY = "ebc17fdd2c491ffd1d0cbac7000be592";
 // (APIs & Services > Library > enable "YouTube Data API v3" > Credentials).
 // Leave "" to disable the YouTube rows entirely.
 const YOUTUBE_API_KEY = "AIzaSyAKKU-KovcZzcvcXtUhuoUEsYBndxAOfjU";
+// fanart.tv personal API key — get one free at fanart.tv (create an account,
+// then request a "Personal API Key" from account settings). Used for real
+// designed title-logo art (transparent PNG wordmarks) on cards, the same
+// kind of asset real streaming services use instead of plain text captions.
+// Leave "" to fall back to TMDB's own (smaller, lower-coverage) logo images.
+const FANART_API_KEY = "d7b588de940efc4dc84cbc1de92f5833";
 // Each entry pulls from that channel's "uploads" playlist (its full upload
 // history) unless an explicit playlistId is given, in which case that exact
 // playlist is used instead (e.g. a specific show/podcast playlist rather
@@ -654,6 +660,31 @@ const lazyImageObserver = new IntersectionObserver((entries) => {
   });
 }, { rootMargin: "200px 100px" });
 
+// Fetches real title-logo art only for cards actually scrolled into view —
+// same lazy pattern as thumbnails, so a 30-card grid doesn't fire 30
+// simultaneous fanart.tv/TMDB requests for logos nobody's looking at yet.
+const logoObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    const el = e.target;
+    logoObserver.unobserve(el);
+    const type = el.dataset.logoType, id = el.dataset.logoId;
+    delete el.dataset.logoType; delete el.dataset.logoId;
+    fetchTitleLogo({ type, id }).then(url => {
+      if (!url) return;
+      const img = document.createElement("img");
+      img.className = "thumb-logo";
+      img.src = url;
+      img.alt = "";
+      el.appendChild(img);
+      // Hide the plain-text title below the thumbnail once real logo art is
+      // showing on it — otherwise the title reads twice, which is the exact
+      // "looks cluttered" issue the plain caption overlay had before.
+      el.closest(".card")?.classList.add("has-logo");
+    }).catch(() => {});
+  });
+}, { rootMargin: "200px 100px" });
+
 function preloadImage(url) {
   if (!url) return;
   const existing = document.querySelector(`link[rel="preload"][href="${url}"]`);
@@ -685,6 +716,10 @@ function makeCard(item, opts = {}) {
   thumb.className = "card-thumb";
   const bg = item.backdropMd || item.backdrop || item.poster;
   if (bg) { thumb.dataset.bg = bg; lazyImageObserver.observe(thumb); }
+  if (item.type === "movie" || item.type === "tv") {
+    thumb.dataset.logoType = item.type; thumb.dataset.logoId = item.id;
+    logoObserver.observe(thumb);
+  }
   const key = progressKey(item);
   const p = progressMap[key];
   let progressBar = "", cwMeta = "", watchedBadge = "", rewatchBadge = "";
@@ -732,7 +767,6 @@ function makeCard(item, opts = {}) {
     ${progressRing}
     ${cwMeta}
     ${progressBar}
-    <div class="thumb-title-overlay">${escapeHTML(item.title || "")}</div>
     <div class="thumb-actions">
       <button type="button" class="play-mini" aria-label="Play ${escapeHTML(item.title || "")}">▶</button>
       <button type="button" class="add-mini" aria-label="Add ${escapeHTML(item.title || "")} to My List">+</button>
@@ -1118,19 +1152,55 @@ function skeletonRow() {
 let heroItem = null;
 let cardMuted = true;
 
-// The cinematic hero banner is hidden in this YouTube-style layout (see
-// .hero { display: none } in styles.css) — rows start right under the top
-// bar instead. renderHero() is kept only for its cheap side effect: sampling
-// an ambient tint color from the page's top item for the row-scroll arrow
-// buttons. It deliberately no longer builds hero DOM content, fetches a
-// title logo, fetches a compact meta line, or fetches/autoplays a trailer —
-// those all used to render into the hidden hero and were pure waste (three
-// extra API calls plus a live hidden YouTube stream on every page load).
+// Cinematic hero banner (Max/HBO-style): a static backdrop image — no
+// autoplaying trailer, so this stays a single lightweight image load rather
+// than the hidden always-on video stream the old design used to waste
+// bandwidth on — with real title-logo art, a compact metadata line, and a
+// short description.
 async function renderHero(item) {
   heroItem = item;
   applyHeroTint(null);
   if (item.poster) extractDominantColor(item.poster).then(c => { if (heroItem === item) applyHeroTint(c); });
   else if (item.backdrop) extractDominantColor(item.backdrop).then(c => { if (heroItem === item) applyHeroTint(c); });
+
+  const bg = $("#hero-bg");
+  if (item.backdrop) preloadImage(item.backdrop);
+  bg.style.backgroundImage = item.backdrop ? `url("${item.backdrop}")` : "";
+
+  const content = $("#hero-content");
+  content.innerHTML = `
+    <div class="hero-eyebrow">MovieTube Original</div>
+    <div class="hero-title-slot"><h1>${escapeHTML(item.title)}</h1></div>
+    <div class="hero-meta-line" id="hero-meta-line">${escapeHTML(typeLabel(item))}${item.year ? ` · ${item.year}` : ""}</div>
+    <p>${escapeHTML(item.overview || "")}</p>
+    <div class="hero-buttons">
+      <button class="btn" id="hero-play">▶ Play</button>
+      <button class="btn-secondary" id="hero-info">ⓘ More Info</button>
+    </div>`;
+  $("#hero-play").addEventListener("click", () => openModal(item));
+  $("#hero-info").addEventListener("click", () => openModal(item));
+
+  // Real title-logo art in place of the plain text once it resolves.
+  fetchTitleLogo(item).then(logo => {
+    if (logo && heroItem === item) {
+      $("#hero-content .hero-title-slot").innerHTML = `<img class="title-logo" src="${logo}" alt="${escapeHTML(item.title)}" />`;
+    }
+  });
+
+  // Fill in the real genre/runtime once details resolve (list endpoints
+  // don't carry them) — one extra request for the one visible hero item,
+  // not the old pattern of doing this invisibly for every page load.
+  if (item.type === "movie" || item.type === "tv") {
+    tmdb(`/${item.type}/${item.id}`).then(details => {
+      if (heroItem !== item) return;
+      const parts = [typeLabel(item)];
+      if (details.genres?.[0]?.name) parts.push(details.genres[0].name);
+      if (item.year) parts.push(String(item.year));
+      if (item.type === "movie" && details.runtime) parts.push(`${details.runtime}m`);
+      else if (item.type === "tv" && details.number_of_seasons) parts.push(`${details.number_of_seasons} Season${details.number_of_seasons > 1 ? "s" : ""}`);
+      $("#hero-meta-line").textContent = parts.join(" · ");
+    }).catch(() => {});
+  }
 }
 
 async function fetchTrailerKey(item) {
@@ -1139,6 +1209,73 @@ async function fetchTrailerKey(item) {
   const trailer = data.results.find(v => v.site === "YouTube" && v.type === "Trailer") ||
                   data.results.find(v => v.site === "YouTube");
   return trailer?.key;
+}
+
+// ---------- Title-logo art (real designed wordmarks, not plain text) ----------
+// fanart.tv specializes in exactly this kind of asset — the same clean,
+// transparent title-logo art real streaming services overlay on key art —
+// with better coverage than TMDB's own (much smaller) logo collection.
+// TV lookups need a TheTVDB id rather than the TMDB id fanart uses for movies.
+const logoCache = new Map();
+async function fetchTvdbId(tmdbId) {
+  try {
+    const data = await tmdb(`/tv/${tmdbId}/external_ids`);
+    return data.tvdb_id || null;
+  } catch { return null; }
+}
+function pickBestLogo(arr) {
+  if (!arr || !arr.length) return null;
+  const en = arr.filter(l => l.lang === "en" || !l.lang);
+  const pool = en.length ? en : arr;
+  pool.sort((a, b) => (+b.likes || 0) - (+a.likes || 0));
+  return pool[0].url;
+}
+async function fetchFanartLogo(item) {
+  if (!FANART_API_KEY) return null;
+  try {
+    let url;
+    if (item.type === "movie") {
+      url = `https://webservice.fanart.tv/v3/movies/${item.id}?api_key=${FANART_API_KEY}`;
+    } else {
+      const tvdbId = await fetchTvdbId(item.id);
+      if (!tvdbId) return null;
+      url = `https://webservice.fanart.tv/v3/tv/${tvdbId}?api_key=${FANART_API_KEY}`;
+    }
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return pickBestLogo(data.hdmovielogo) || pickBestLogo(data.movielogo) ||
+           pickBestLogo(data.hdtvlogo) || pickBestLogo(data.clearlogo);
+  } catch { return null; }
+}
+async function fetchTmdbLogo(item) {
+  try {
+    const path = item.type === "tv" ? `/tv/${item.id}/images` : `/movie/${item.id}/images`;
+    const url = new URL(TMDB + path);
+    url.searchParams.set("api_key", TMDB_API_KEY);
+    url.searchParams.set("include_image_language", "en,null");
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const data = await r.json();
+    const logos = (data.logos || []).filter(l => l.iso_639_1 === "en" || l.iso_639_1 === null);
+    if (!logos.length) return null;
+    logos.sort((a, b) => {
+      const af = a.file_path.endsWith(".png") ? 1 : 0;
+      const bf = b.file_path.endsWith(".png") ? 1 : 0;
+      if (af !== bf) return bf - af;
+      return (b.vote_average || 0) - (a.vote_average || 0);
+    });
+    return `${IMG}/w500${logos[0].file_path}`;
+  } catch { return null; }
+}
+async function fetchTitleLogo(item) {
+  const key = `${item.type}:${item.id}`;
+  if (logoCache.has(key)) return logoCache.get(key);
+  const promise = (async () => (await fetchFanartLogo(item)) || (await fetchTmdbLogo(item)))();
+  logoCache.set(key, promise);
+  const result = await promise;
+  logoCache.set(key, result);
+  return result;
 }
 
 function stopHeroTrailer() {
@@ -1195,9 +1332,7 @@ async function showHome() {
   setActive("home");
   stopHeroTrailer();
   const rows = $("#rows");
-  rows.innerHTML = `<div class="home-chips"></div><div class="home-grid"></div>`;
-  rows.querySelector(".home-grid").innerHTML = Array.from({ length: 8 }, () => `<div class="grid-sk"></div>`).join("");
-  const feed = makeChipFeed(rows);
+  rows.innerHTML = ""; for (let i = 0; i < 4; i++) rows.appendChild(skeletonRow());
   try {
     const regionParam = { region: userRegion };
     const [trending, popMovies, popTV, topMovies, trendingDay] = await Promise.all([
@@ -1211,34 +1346,41 @@ async function showHome() {
     const heroPick = trendingItems.find(t => t.backdrop && t.overview) || trendingItems[0];
     renderHero(heroPick);
 
-    feed.add("continue", "Continue Watching", getContinueWatching(), true);
-    feed.add("mylist", "My List", myList);
-    feed.add("trending", "Trending Now", trendingItems);
-    feed.add("top10", `Top 10 in ${userRegion}`, trendingDay.results.slice(0, 10).map(r => normalizeTMDB(r)));
-    feed.add("popmovies", "Popular Movies", popMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
-    feed.add("poptv", "Popular TV Shows", popTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv")));
-    feed.add("acclaimed", "Critically Acclaimed", topMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+    rows.innerHTML = "";
+    const continueItems = getContinueWatching();
+    if (continueItems.length) rows.appendChild(renderRow("Continue Watching", continueItems, { showProgress: true }));
+    if (myList.length) rows.appendChild(renderRow("My List", myList));
+    rows.appendChild(renderRow("Trending Now", trendingItems));
+    rows.appendChild(renderRow(`Top 10 in ${userRegion}`, trendingDay.results.slice(0, 10).map(r => normalizeTMDB(r)), { top10: true, top10Badge: `in ${userRegion}` }));
+    rows.appendChild(renderRow("Popular Movies", popMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
+    rows.appendChild(renderRow("Popular TV Shows", popTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv"))));
+    rows.appendChild(renderRow("Critically Acclaimed", topMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
 
-    // Recommended for You: one blended, scored set from all your seeds
-    getRecommendedForYou().then(items => feed.add("recommended", "Recommended for You", items)).catch(() => {});
+    // Recommended for You: one blended, scored row from all your seeds
+    getRecommendedForYou().then(items => {
+      if (items.length) rows.appendChild(renderRow("Recommended for You", items));
+    }).catch(() => {});
 
     // Then the named "Because you watched X" breakdowns per seed
     getNamedRecommendations().then(namedRows => {
-      namedRows.forEach(({ label, items }, i) => feed.add(`rec_${i}`, label, items));
+      namedRows.forEach(({ label, items }) => {
+        if (items.length) rows.appendChild(renderRow(label, items));
+      });
     }).catch(() => {});
 
-    // YouTube channel content (fire-and-forget, same pattern as the recommendation rows above)
+    // YouTube channel rows (fire-and-forget, same pattern as the recommendation rows above)
     if (YOUTUBE_API_KEY) {
       Promise.all(YOUTUBE_CHANNELS.map(cfg => fetchYouTubeChannelRow(cfg).catch(() => ({ label: cfg.label, items: [] }))))
         .then(results => {
-          results.forEach(({ label, items }, i) => feed.add(`yt_${YOUTUBE_CHANNELS[i].key}`, label, items));
+          results.forEach(({ label, items }) => { if (items.length) rows.appendChild(renderRow(label, items)); });
+          rows.appendChild(renderYouTubeChannelTiles(YOUTUBE_CHANNELS.map((cfg, i) => ({ cfg, items: results[i].items }))));
         }).catch(() => {});
     }
 
-    // Genre categories (lazy after main content)
+    // Genre rows (lazy after main content)
     for (const g of GENRES_MOVIE.slice(0, 5)) {
       const data = await tmdb("/discover/movie", { with_genres: g.id, sort_by: "popularity.desc" });
-      feed.add(`genre_${g.id}`, g.name, data.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+      rows.appendChild(renderRow(g.name, data.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
     }
   } catch (e) {
     rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`;
@@ -1309,14 +1451,11 @@ async function showCategory(type, genreId = null) {
     renderHero(trendItems.find(i => i.backdrop) || trendItems[0]);
     rows.innerHTML = "";
     rows.appendChild(renderGenreChips(type, null));
-    const feedWrap = document.createElement("div");
-    rows.appendChild(feedWrap);
-    const feed = makeChipFeed(feedWrap);
-    feed.add("trending", "Trending This Week", trendItems);
-    feed.add("top10", "Top 10 in " + (type === "tv" ? "TV" : "Movies"), trendItems.slice(0, 10));
-    feed.add("nowplaying", type === "movie" ? "Now Playing" : "Currently Airing", nowOrAir.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type)));
-    feed.add("popular", "Popular", popular.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type)));
-    feed.add("toprated", "Top Rated", topRated.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type)));
+    rows.appendChild(renderRow("Trending This Week", trendItems));
+    rows.appendChild(renderRow("Top 10 in " + (type === "tv" ? "TV" : "Movies"), trendItems.slice(0, 10), { top10: true }));
+    rows.appendChild(renderRow(type === "movie" ? "Now Playing" : "Currently Airing", nowOrAir.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type))));
+    rows.appendChild(renderRow("Popular", popular.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type))));
+    rows.appendChild(renderRow("Top Rated", topRated.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, type))));
   } catch (e) {
     rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`;
   }
@@ -1336,13 +1475,12 @@ async function showNewPopular() {
     ]);
     const trendItems = trending.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r));
     renderHero(trendItems.find(i => i.backdrop) || trendItems[0]);
-    rows.innerHTML = `<div class="home-chips"></div><div class="home-grid"></div>`;
-    const feed = makeChipFeed(rows);
-    feed.add("trending", "Trending Today", trendItems);
-    feed.add("top10", "Top 10 Today", trendItems.slice(0, 10));
-    feed.add("comingsoon", "Coming Soon (Movies)", upMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
-    feed.add("airing", "Airing Today (TV)", upTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv")));
-    feed.add("newlyreleased", "Newly Released", latestMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie")));
+    rows.innerHTML = "";
+    rows.appendChild(renderRow("Trending Today", trendItems));
+    rows.appendChild(renderRow("Top 10 Today", trendItems.slice(0, 10), { top10: true }));
+    rows.appendChild(renderRow("Coming Soon (Movies)", upMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
+    rows.appendChild(renderRow("Airing Today (TV)", upTV.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "tv"))));
+    rows.appendChild(renderRow("Newly Released", latestMovies.results.filter(r => r.backdrop_path && r.poster_path).map(r => normalizeTMDB(r, "movie"))));
   } catch (e) { rows.innerHTML = `<div class="empty">${escapeHTML(friendlyErrorMessage(e))}</div>`; }
 }
 
