@@ -633,6 +633,8 @@ button { font-family: inherit; }
   box-shadow: var(--shadow-lg);
   animation: modalIn 0.4s var(--ease);
 }
+.modal.closing .modal-backdrop { animation: fadeOut 0.22s var(--ease) forwards; }
+.modal.closing .modal-body { animation: modalOut 0.22s var(--ease) forwards; }
 .modal-columns { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start; padding: 0 24px 40px; }
 .modal-main { min-width: 0; }
 .modal-side { min-width: 0; }
@@ -1145,6 +1147,14 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(40px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes modalOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(24px) scale(0.97); }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 @keyframes dropdownIn {
   from { opacity: 0; transform: translateY(-8px); }

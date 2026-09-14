@@ -2810,6 +2810,11 @@ let currentItem = null;
 let modalMuted = true;
 let currentSeason = null;
 let modalDetails = null;
+// Bumped on every open/close so a close's deferred cleanup (see closeModal's
+// fade-out) can tell whether it's still the modal's current "session" —
+// otherwise closing one title then immediately opening another within the
+// fade window would let the stale timeout hide/clear the new one.
+let modalSessionToken = 0;
 // The hash to restore when the modal is closed via our own UI (× / backdrop /
 // Escape) — set once per "session" of opening a title, not overwritten by
 // navigating between titles while a modal is already open.
@@ -2948,6 +2953,8 @@ async function openModal(item, opts = {}) {
   }
   currentItem = item;
   modalDetails = null;
+  modalSessionToken++;
+  $("#modal").classList.remove("closing");
   $("#modal").classList.remove("hidden");
   $("#modal").scrollTop = 0;
   document.body.style.overflow = "hidden";
@@ -3409,10 +3416,6 @@ function buildPlayerURL(item, ctx = {}, overrideSeek = null, providerOverride = 
 
 function closeModal() {
   clearTimeout(playerWatchdogTimer);
-  $("#modal").classList.add("hidden");
-  $("#modal-trailer").innerHTML = "";
-  $("#player-wrap").innerHTML = ""; $("#player-wrap").classList.remove("active");
-  $(".modal-body").classList.remove("playing");
   document.body.style.overflow = "";
   currentItem = null;
   // End session
@@ -3431,6 +3434,19 @@ function closeModal() {
   // Restore hero trailer if it was paused
   const heroIframe = $("#hero-trailer iframe");
   if (heroIframe && heroIframe.dataset.src && !heroIframe.src) heroIframe.src = heroIframe.dataset.src;
+  // Fade out before hiding, rather than snapping away instantly — keep the
+  // trailer/player visible underneath the fade so it doesn't flash blank.
+  modalSessionToken++;
+  const token = modalSessionToken;
+  $("#modal").classList.add("closing");
+  setTimeout(() => {
+    if (token !== modalSessionToken) return; // a new title was opened during the fade
+    $("#modal").classList.remove("closing");
+    $("#modal").classList.add("hidden");
+    $("#modal-trailer").innerHTML = "";
+    $("#player-wrap").innerHTML = ""; $("#player-wrap").classList.remove("active");
+    $(".modal-body").classList.remove("playing");
+  }, 220);
 }
 function closeModalNav() {
   // Close immediately rather than relying on history.back() to do it —
