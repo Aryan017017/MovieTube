@@ -1038,6 +1038,7 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 
 /* ================ Page header / Empty state ================ */
 .page-header {
+  display: flex; justify-content: space-between; align-items: center;
   padding: 0 4%; margin-bottom: 24px;
 }
 .page-header h1 {
@@ -1161,6 +1162,21 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
   body::-webkit-scrollbar { width: 0; }
 
   .btn, .btn-secondary { padding: 9px 18px; font-size: 14px; }
+
+  /* Title and action-button pills were fighting for space in one row,
+     wrapping the title mid-phrase ("Your" / "Stats") against the crowded
+     buttons. Stack them, and let the pills scroll horizontally instead of
+     wrapping/overflowing off-screen. */
+  .page-header {
+    flex-direction: column; align-items: flex-start; gap: 12px;
+  }
+  .page-header h1 { font-size: 28px; }
+  .page-header-actions {
+    width: 100%; overflow-x: auto; flex-wrap: nowrap;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .page-header-actions::-webkit-scrollbar { display: none; }
+  .page-header-actions .page-action-btn { flex-shrink: 0; }
 
   /* Rows */
   #rows { padding: 12px 0 60px; margin-top: 0; }
@@ -1291,7 +1307,6 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 }
 
 /* ================ Stats page ================ */
-.page-header { display: flex; justify-content: space-between; align-items: center; padding: 0 4%; margin-bottom: 24px; }
 .page-header-actions { display: flex; gap: 12px; }
 .page-action-btn {
   background: rgba(255,255,255,0.08);
