@@ -1114,113 +1114,23 @@ function skeletonRow() {
   return div;
 }
 
-// ---------- Hero (with auto-trailer) ----------
-let heroMuted = true;
+// ---------- Hero ----------
 let heroItem = null;
-let heroFadeTimer = null;
 let cardMuted = true;
 
+// The cinematic hero banner is hidden in this YouTube-style layout (see
+// .hero { display: none } in styles.css) — rows start right under the top
+// bar instead. renderHero() is kept only for its cheap side effect: sampling
+// an ambient tint color from the page's top item for the row-scroll arrow
+// buttons. It deliberately no longer builds hero DOM content, fetches a
+// title logo, fetches a compact meta line, or fetches/autoplays a trailer —
+// those all used to render into the hidden hero and were pure waste (three
+// extra API calls plus a live hidden YouTube stream on every page load).
 async function renderHero(item) {
   heroItem = item;
-  const bg = $("#hero-bg");
-  const trailerEl = $("#hero-trailer");
-  if (item.backdrop) preloadImage(item.backdrop);
-  bg.style.backgroundImage = item.backdrop ? `url("${item.backdrop}")` : "";
-  // Reset then extract dominant color for ambient tint
   applyHeroTint(null);
   if (item.poster) extractDominantColor(item.poster).then(c => { if (heroItem === item) applyHeroTint(c); });
   else if (item.backdrop) extractDominantColor(item.backdrop).then(c => { if (heroItem === item) applyHeroTint(c); });
-  trailerEl.innerHTML = "";
-
-  const match = pseudoMatch(item);
-  const age = pseudoAge(item);
-  $("#hero-age").textContent = age;
-  $("#hero-content").innerHTML = `
-    <div class="hero-title-slot"><h1>${escapeHTML(item.title)}</h1></div>
-    <div class="badges">
-      <span class="match">${match}% Match</span>
-      ${item.rating ? `<span class="rating-star">★ ${item.rating}</span>` : ""}
-      <span>${item.year || ""}</span>
-    </div>
-    <div class="hero-meta-line" id="hero-meta-line"></div>
-    <p>${escapeHTML(item.overview || "")}</p>
-    <div class="hero-buttons">
-      <button class="btn" id="hero-play">▶ Play</button>
-      <button class="btn-secondary" id="hero-info">ⓘ More Info</button>
-    </div>`;
-  $("#hero-play").addEventListener("click", () => openModal(item));
-  $("#hero-info").addEventListener("click", () => openModal(item));
-
-  // Replace H1 with title logo art if available
-  fetchTitleLogo(item).then(logo => {
-    if (logo && heroItem === item) {
-      $("#hero-content .hero-title-slot").innerHTML = `<img class="title-logo" src="${logo}" alt="${escapeHTML(item.title)}" />`;
-    }
-  });
-
-  // Compact "Type • Genre • Year • Runtime/Seasons • Age" line, Netflix-style
-  fetchHeroMetaLine(item).then(parts => {
-    if (parts.length && heroItem === item) {
-      $("#hero-meta-line").innerHTML = parts.map(escapeHTML).join(' <span class="dot">•</span> ');
-    }
-  });
-
-  // Try to fetch trailer
-  try {
-    const key = await fetchTrailerKey(item);
-    if (key) {
-      const muteParam = heroMuted ? 1 : 0;
-      trailerEl.innerHTML = `<iframe src="${YT_EMBED}${key}?autoplay=1&mute=${muteParam}&controls=0&modestbranding=1&rel=0&playsinline=1&loop=1&playlist=${key}&disablekb=1&vq=hd1080&hd=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}" allow="autoplay; encrypted-media" sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>`;
-      // The hero trailer is a passive background, not something to click/hover
-      // into — this also stops the browser's own hover media controls from
-      // ever appearing, since those only show up on actual pointer interaction.
-      trailerEl.style.pointerEvents = "none";
-      // Let the trailer play a few seconds before easing the title/description
-      // out of the way, Netflix-style.
-      clearTimeout(heroFadeTimer);
-      heroFadeTimer = setTimeout(() => {
-        if (heroItem === item) $("#hero-content").classList.add("trailer-active");
-      }, 4000);
-    }
-  } catch {}
-}
-
-// "Show • Action • 2026 • 2 Seasons • TV-PG" style compact hero metadata line.
-async function fetchHeroMetaLine(item) {
-  const typeLabel = item.type === "movie" ? "Movie" : "Show";
-  const parts = [typeLabel];
-  try {
-    const details = await tmdb(`/${item.type}/${item.id}`);
-    if (details.genres?.[0]?.name) parts.push(details.genres[0].name);
-    if (item.year) parts.push(String(item.year));
-    if (item.type === "movie" && details.runtime) parts.push(`${details.runtime}m`);
-    else if (item.type === "tv" && details.number_of_seasons) parts.push(`${details.number_of_seasons} Season${details.number_of_seasons > 1 ? "s" : ""}`);
-    parts.push(pseudoAge(item));
-    return parts;
-  } catch { return []; }
-}
-
-async function fetchTitleLogo(item) {
-  try {
-    const path = item.type === "tv" ? `/tv/${item.id}/images` : `/movie/${item.id}/images`;
-    // override include_image_language so we actually get logos
-    const url = new URL(TMDB + path);
-    url.searchParams.set("api_key", TMDB_API_KEY);
-    url.searchParams.set("include_image_language", "en,null");
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const data = await r.json();
-    const logos = (data.logos || []).filter(l => l.iso_639_1 === "en" || l.iso_639_1 === null);
-    if (!logos.length) return null;
-    // Prefer PNG, then highest voted
-    logos.sort((a, b) => {
-      const af = a.file_path.endsWith(".png") ? 1 : 0;
-      const bf = b.file_path.endsWith(".png") ? 1 : 0;
-      if (af !== bf) return bf - af;
-      return (b.vote_average || 0) - (a.vote_average || 0);
-    });
-    return `${IMG}/w500${logos[0].file_path}`;
-  } catch { return null; }
 }
 
 async function fetchTrailerKey(item) {
@@ -1231,34 +1141,9 @@ async function fetchTrailerKey(item) {
   return trailer?.key;
 }
 
-$("#mute-btn").addEventListener("click", () => {
-  heroMuted = !heroMuted;
-  $("#mute-btn").textContent = heroMuted ? "✕" : "♪";
-  $("#mute-btn").setAttribute("aria-label", heroMuted ? "Unmute" : "Mute");
-  postYTCommand($("#hero-trailer iframe"), heroMuted ? "mute" : "unMute");
-});
-
 function stopHeroTrailer() {
-  $("#hero-trailer").innerHTML = "";
   heroItem = null;
-  clearTimeout(heroFadeTimer);
 }
-
-// Pause hero audio when scrolled out of view
-const heroObserver = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (!heroItem) return;
-    const iframe = $("#hero-trailer iframe");
-    if (!iframe) return;
-    if (!e.isIntersecting) {
-      iframe.dataset.src = iframe.src;
-      iframe.src = "";
-    } else if (iframe.dataset.src && !iframe.src) {
-      iframe.src = iframe.dataset.src;
-    }
-  });
-}, { threshold: 0.2 });
-heroObserver.observe($("#hero"));
 
 // ---------- Chip feed (YouTube-style: filter chips over one flat grid) ----------
 // Reused by the Home, Movies/TV, and New & Popular pages so each one gets

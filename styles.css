@@ -248,86 +248,8 @@ button { font-family: inherit; }
 #content { margin-left: var(--sidebar-w); padding-top: calc(56px + env(safe-area-inset-top, 0px)); }
 #footer { margin-left: var(--sidebar-w); }
 
-/* ================ Hero ================ */
-/* YouTube's own homepage has no cinematic hero — it drops straight into the
-   video grid. Keep the hero markup (trailer/tint logic still runs) but hide
-   it so rows start right under the top bar, matching that layout. */
-.hero { display: none; }
-.hero {
-  position: relative; height: 92vh; min-height: 600px;
-  overflow: hidden;
-}
-.hero-bg, .hero-trailer { position: absolute; inset: 0; }
-.hero-bg {
-  background-size: cover; background-position: center top;
-  animation: fadeIn 0.8s var(--ease);
-}
-.hero-trailer iframe {
-  width: 100%; height: 100%; border: 0;
-  pointer-events: none;
-  transform: scale(1.4);
-}
-.hero-fade-bottom {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 50%;
-  background: linear-gradient(180deg, transparent, var(--bg) 92%);
-  pointer-events: none;
-}
-.hero-fade-left {
-  position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(var(--hero-tint-rgb),0.95) 0%, rgba(var(--hero-tint-rgb),0.6) 30%, rgba(var(--hero-tint-rgb),0) 60%);
-  pointer-events: none;
-}
 /* Subtle ambient tint at the top of the rows section, fading out */
 #rows { position: relative; }
-.hero-content {
-  position: absolute; left: 4%; bottom: 28%; max-width: 38%;
-  z-index: 2;
-  animation: slideUp 0.8s var(--ease);
-}
-/* Once the trailer's been playing a few seconds, ease the title/description
-   out of the way so the video gets the focus — Netflix does the same. */
-.hero-content .hero-title-slot,
-.hero-content .badges,
-.hero-content .hero-meta-line,
-.hero-content p {
-  transition: opacity 1.5s var(--ease-soft);
-}
-.hero-content.trailer-active .hero-title-slot,
-.hero-content.trailer-active .badges,
-.hero-content.trailer-active .hero-meta-line,
-.hero-content.trailer-active p {
-  opacity: 0; pointer-events: none;
-}
-.hero-content h1 {
-  font-family: var(--font-display); font-size: 60px; font-weight: 800; margin-bottom: 18px;
-  letter-spacing: -0.01em; line-height: 1.05;
-  text-shadow: 2px 4px 12px rgba(0,0,0,0.6);
-}
-.hero-content .title-logo {
-  max-width: 100%; max-height: 200px;
-  margin-bottom: 18px; display: block;
-  filter: drop-shadow(2px 4px 12px rgba(0,0,0,0.6));
-  animation: fadeIn 0.5s var(--ease);
-}
-.hero-content .hero-title-slot { min-height: 80px; }
-.hero-content .badges {
-  display: flex; align-items: center; gap: 14px;
-  margin-bottom: 16px; font-size: 15px;
-  text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
-}
-.hero-content .badges .match { color: var(--green); font-weight: 700; }
-.hero-meta-line {
-  font-size: 14px; color: #d4d4d4; margin-bottom: 16px;
-  text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
-}
-.hero-meta-line .dot { color: var(--muted-2); margin: 0 2px; }
-.hero-content p {
-  font-size: 17px; line-height: 1.5; margin-bottom: 24px;
-  text-shadow: 1px 2px 6px rgba(0,0,0,0.7);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-  font-weight: 400; color: #f0f0f0;
-}
-.hero-buttons { display: flex; gap: 12px; }
 
 .btn, .btn-secondary, .icon-btn {
   border: 0; cursor: pointer; font-weight: 600;
@@ -359,25 +281,6 @@ button { font-family: inherit; }
 .icon-btn:hover { border-color: #fff; background: rgba(42,42,42,0.85); transform: scale(1.05); }
 .icon-btn:active { transform: scale(0.95); }
 
-.hero-controls {
-  position: absolute; right: 0; bottom: 35%; z-index: 2;
-  display: flex; align-items: center; gap: 0;
-}
-.mute-btn {
-  background: rgba(42,42,42,0.5); color: #fff;
-  border: 2px solid rgba(255,255,255,0.45);
-  width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
-  font-size: 16px;
-  backdrop-filter: blur(8px);
-  transition: all 0.2s var(--ease-soft);
-}
-.mute-btn:hover { border-color: #fff; transform: scale(1.05); }
-.age-badge {
-  background: rgba(0,0,0,0.4); color: #fff;
-  padding: 6px 22px 6px 16px; margin-left: 18px;
-  border-left: 3px solid #fff; font-size: 16px; font-weight: 500;
-  backdrop-filter: blur(8px);
-}
 
 /* ================ Rows ================ */
 #rows {
@@ -1167,32 +1070,18 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 /* ================ Tablet (≤1024px) ================ */
 @media (max-width: 1024px) {
   #navbar { padding: 0 24px; height: 64px; padding-top: env(safe-area-inset-top, 0px); height: calc(64px + env(safe-area-inset-top, 0px)); }
-  .nav-left { gap: 22px; }
-  .nav-left nav { gap: 16px; font-size: 13px; }
   .logo { font-size: 26px; }
-  .search-box.open input, .search-box:focus-within input { width: 160px; }
-  .hero { height: 80vh; min-height: 520px; }
-  .hero-content { max-width: 60%; bottom: 24%; }
-  .hero-content h1 { font-size: 48px; }
-  .hero-content .title-logo { max-height: 160px; }
-  .hero-content p { font-size: 15px; -webkit-line-clamp: 2; }
-  .card { flex: 0 0 22%; min-width: 160px; }
+  .card { flex: 0 0 200px; min-width: 180px; }
   .skeleton-row .sk-card { flex: 0 0 22%; min-width: 160px; }
-  .top10-card { height: 170px; }
-  .top10-number { font-size: 130px; margin-right: -14px; }
   .modal-body { width: 92%; margin: 24px auto; }
   .modal-columns { grid-template-columns: 1fr; }
   .search-grid { grid-template-columns: repeat(4, 1fr); }
   .footer-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* ================ Tablet (701–860px): tighten navbar so links can't wrap ================ */
+/* ================ Tablet (701–860px): tighten navbar ================ */
 @media (max-width: 860px) and (min-width: 701px) {
-  .nav-left { gap: 14px; }
-  .nav-left nav { gap: 10px; }
-  .nav-left nav a { font-size: 12px; }
   .logo { font-size: 22px; }
-  .search-box.open input, .search-box:focus-within input { width: 150px; }
 }
 
 /* ================ Sidebar (≤900px): off-canvas overlay instead of a
@@ -1227,22 +1116,7 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
 @media (max-width: 640px) {
   body::-webkit-scrollbar { width: 0; }
 
-  /* Hero */
-  .hero { height: 68vh; min-height: 420px; }
-  .hero-content {
-    max-width: 92%; left: 4%; right: 4%; bottom: 18%;
-  }
-  .hero-content h1 { font-size: 28px; margin-bottom: 12px; }
-  .hero-content .title-logo { max-height: 100px; margin-bottom: 12px; }
-  .hero-content .hero-title-slot { min-height: 50px; }
-  .hero-content .badges { font-size: 13px; gap: 10px; margin-bottom: 10px; }
-  .hero-content p { font-size: 13px; -webkit-line-clamp: 2; margin-bottom: 16px; }
-  .hero-buttons { gap: 8px; flex-wrap: wrap; }
   .btn, .btn-secondary { padding: 9px 18px; font-size: 14px; }
-  .hero-controls { bottom: 30%; }
-  .mute-btn { width: 36px; height: 36px; font-size: 14px; }
-  .age-badge { padding: 4px 12px 4px 10px; font-size: 13px; margin-left: 10px; }
-  .hero-fade-left { background: linear-gradient(180deg, rgba(var(--hero-tint-rgb),0.4), rgba(var(--hero-tint-rgb),0.95) 90%); }
 
   /* Rows */
   #rows { padding: 12px 0 60px; margin-top: 0; }
@@ -1255,7 +1129,7 @@ body.no-hero #rows { margin-top: 0; padding-top: 24px; }
     margin: -12px 0; scroll-snap-type: x mandatory;
   }
   .card {
-    flex: 0 0 30%; min-width: 130px;
+    flex: 0 0 78%; min-width: 240px;
     scroll-snap-align: start;
   }
   .skeleton-row .sk-card { flex: 0 0 30%; min-width: 130px; }
