@@ -34,16 +34,10 @@ const PROXY_PLAYER_BASE = "";
 //   "vidsrc"   – different URL scheme, fewer params
 //   "embedsu"  – minimal, bare embed
 const PLAYER_PROVIDER = "videasy";
-// If the current provider never signals a single timeupdate within this
-// long (some devices/networks get stuck on the provider's own loading
-// screen — e.g. a caption fetch that silently hangs), automatically swap to
-// the next provider in the chain and retry, rather than leaving the user
-// stuck on an infinite spinner. Every provider except the last gets a
-// watchdog; if all of them time out, the last one is left running as-is
-// (nothing further to fall back to).
-const PLAYER_PROVIDER_CHAIN = [PLAYER_PROVIDER, "vidlink", "vidsrc", "embedsu"]
-  .filter((p, i, arr) => arr.indexOf(p) === i); // de-dup in case PLAYER_PROVIDER is already one of these
-const PLAYER_WATCHDOG_MS = 14000;
+// No automatic fallback/watchdog: it used to force-switch providers whenever
+// the "I'm alive" postMessage was merely slow to arrive (common on mobile
+// networks), interrupting streams that were actually playing fine. Just
+// this one provider loads, and stays loaded.
 // =========================================================================
 
 const TMDB = "https://api.themoviedb.org/3";
@@ -3146,37 +3140,17 @@ function computeNextEpisode(item, ctx) {
   return null;
 }
 
-let playerAttemptToken = 0;
-let playerWatchdogTimer = null;
-// Walks PLAYER_PROVIDER_CHAIN (videasy → vidlink → vidsrc → embedsu) rather
-// than a single named fallback: if a provider never signals a timeupdate
-// within the watchdog window, automatically try the next one. The
-// postMessage listener only recognizes videasy's message shape (gated by
-// PLAYER_ORIGIN), so only the very first attempt gets a *confirmed* liveness
-// check; later hops watchdog on a plain timeout instead — not perfectly
-// accurate, but stuck-forever-on-a-dead-embed is worse than an occasional
-// unnecessary extra hop.
-function launchPlayerAttempt(item, ctx, seek, chainIndex, token) {
-  const provider = PLAYER_PROVIDER_CHAIN[chainIndex] || PLAYER_PROVIDER_CHAIN[0];
-  // The very first attempt leaves providerOverride null so buildPlayerURL's
-  // own PROXY_PLAYER_BASE preference still applies; later hops always name
-  // their provider explicitly, which (by design, see buildPlayerURL) bypasses
-  // the proxy and goes straight to that provider's own embed.
-  const url = buildPlayerURL(item, ctx, seek, chainIndex === 0 ? null : provider);
+// No automatic fallback/watchdog here on purpose: it was force-switching
+// providers whenever the "I'm alive" postMessage was merely slow to arrive
+// (common on mobile networks), interrupting streams that were actually
+// playing fine. Just load the configured provider and leave it alone.
+function launchPlayerAttempt(item, ctx, seek) {
+  const url = buildPlayerURL(item, ctx, seek);
   $("#player-wrap").classList.add("active");
   $("#player-wrap").innerHTML = `<iframe src="${url}"
     allow="encrypted-media; autoplay; fullscreen; picture-in-picture"
     allowfullscreen referrerpolicy="origin"></iframe>
     <button class="player-fs-btn" id="player-fs-btn" title="Fullscreen" aria-label="Fullscreen">⛶</button>`;
-  clearTimeout(playerWatchdogTimer);
-  const nextIndex = chainIndex + 1;
-  if (nextIndex < PLAYER_PROVIDER_CHAIN.length) {
-    playerWatchdogTimer = setTimeout(() => {
-      if (token !== playerAttemptToken) return; // superseded — user closed or replayed
-      showToast("Having trouble loading — trying another server…");
-      launchPlayerAttempt(item, ctx, seek, nextIndex, token);
-    }, PLAYER_WATCHDOG_MS);
-  }
 }
 function startPlayer(item, ctx = {}, seekOffsetSec = null) {
   // Smart resume: if user pressed main Play (no ctx) on TV and last episode was finished, jump to next
@@ -3205,8 +3179,7 @@ function startPlayer(item, ctx = {}, seekOffsetSec = null) {
   }
   $("#modal-trailer").innerHTML = "";
   $(".modal-body").classList.add("playing");
-  playerAttemptToken++;
-  launchPlayerAttempt(item, ctx, seekOffsetSec, 0, playerAttemptToken);
+  launchPlayerAttempt(item, ctx, seekOffsetSec);
   $("#modal").scrollTop = 0;
 
   playingItem = item;
@@ -3305,7 +3278,7 @@ function showUpNext() {
 
 let lastTimestamp = 0;
 
-function buildPlayerURL(item, ctx = {}, overrideSeek = null, providerOverride = null) {
+function buildPlayerURL(item, ctx = {}, overrideSeek = null) {
   // Per-episode seek if applicable, else show-level
   let last;
   if (item.type === "tv" && ctx.episode) {
@@ -3318,8 +3291,8 @@ function buildPlayerURL(item, ctx = {}, overrideSeek = null, providerOverride = 
   if (seek != null && last?.duration && seek > last.duration - 30) seek = null;
 
   // Provider-specific URL builders
-  const provider = providerOverride || (PROXY_PLAYER_BASE ? "videasy" : PLAYER_PROVIDER);
-  const base = providerOverride ? PLAYER_BASES[providerOverride] : PLAYER_BASE;
+  const provider = PROXY_PLAYER_BASE ? "videasy" : PLAYER_PROVIDER;
+  const base = PLAYER_BASE;
 
   if (provider === "vidlink") {
     // vidlink.pro - same path scheme as videasy
@@ -3363,7 +3336,6 @@ function buildPlayerURL(item, ctx = {}, overrideSeek = null, providerOverride = 
 }
 
 function closeModal() {
-  clearTimeout(playerWatchdogTimer);
   document.body.style.overflow = "";
   currentItem = null;
   // End session
@@ -3483,7 +3455,6 @@ window.addEventListener("message", (event) => {
   if (!d || d.event !== "timeupdate" || d.id == null) return;
   if (!currentItem) return;
   if (String(d.id) !== String(currentItem.id) || d.mediaType !== currentItem.type) return; // stale event from a previous title
-  clearTimeout(playerWatchdogTimer); // the player is alive — no need for the fallback watchdog
   if (privacy.pauseProgress) return;  // privacy: skip progress saves
 
   const timestamp = d.currentTime || 0;
@@ -3704,7 +3675,6 @@ function openTitle(item) {
 }
 
 function closeModalSilent() {
-  clearTimeout(playerWatchdogTimer);
   $("#modal").classList.add("hidden");
   $("#modal-trailer").innerHTML = "";
   $("#player-wrap").innerHTML = ""; $("#player-wrap").classList.remove("active");
