@@ -3149,7 +3149,7 @@ function launchPlayerAttempt(item, ctx, seek) {
   $("#player-wrap").classList.add("active");
   $("#player-wrap").innerHTML = `<iframe src="${url}"
     allow="encrypted-media; autoplay; fullscreen; picture-in-picture"
-    allowfullscreen referrerpolicy="origin"></iframe>
+    allowfullscreen></iframe>
     <button class="player-fs-btn" id="player-fs-btn" title="Fullscreen" aria-label="Fullscreen">⛶</button>`;
 }
 function startPlayer(item, ctx = {}, seekOffsetSec = null) {
